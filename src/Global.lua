@@ -327,6 +327,8 @@ end
 
 setmetatable(inspect, { __call = function(_, ...) return inspect.inspect(...) end })
 
+--- End of inspect --
+
 function split(str, delim)
     local result,pat,lastPos = {},"(.-)" .. delim .. "()",1
     for part, pos in string.gfind(str, pat) do
@@ -336,6 +338,8 @@ function split(str, delim)
     return result
 end
 
+-- End of split --
+
 function table.contains(table, element)
   for _, value in pairs(table) do
     if value == element then
@@ -344,6 +348,25 @@ function table.contains(table, element)
   end
   return false
 end
+
+-- End of table.contains --
+
+-- Start of Agricola Globals --
+
+kDeckBagGUID = "236391"
+eDeckBagGUID = "5b947c"
+iDeckBagGUID = "c4551b"
+occupationDeckGUIDs = { "5fd15d", "ba39bf", "61f6d6", "5c1922", "eec2e8", "1e6207", "997c19", "9879ec", "e4d037" }
+occupationShufflingZoneGUID = "d46db2"
+minorImprovementDeckGUIDs = { "fd9eea", "aaa166", "6de5b0" }
+minorImprovementShufflingZoneGUID = "286fa6"
+
+
+function getObjectPositionTable(object)
+    local position = object.getPosition()
+    return { position['x'], position['y'], position['z'] }
+end
+
 
 function initializeActionCards(playerCount)
     print("Initializing player cards for " .. playerCount .. " players")
@@ -376,12 +399,15 @@ end
 
 function initializeOneOccupationType(isCorrect, playerCount, occupations1Player, occupations3Players, occupations4Players, occupationDeckPosition, occupationBagPosition)
     if (isCorrect) then
+        occupations1Player.flip()
         occupations1Player.setPosition(occupationDeckPosition)
         
         if (playerCount >= 3) then
+            occupations3Players.flip()
             occupations3Players.setPosition(occupationDeckPosition)
             
             if (playerCount >= 4) then
+                occupations4Players.flip()
                 occupations4Players.setPosition(occupationDeckPosition)
             else
                 occupations4Players.setPosition(occupationBagPosition)
@@ -399,78 +425,69 @@ end
 
 
 function initializeOccupations(playerCount, deckTypes)
-    occupationDeckPosition = { -16.7445259, 1.02870941, 4.87904072 }
-    -- occupationsDeck = spawnObject('CustomDeck', occupationDeckPosition)
-    
-    kOccupationDeckBag = getObjectFromGUID("236391")
-    local kOccupationDeckBagPositionTemp = kOccupationDeckBag.getPosition()
-    kOccupationDeckBagPosition = { kOccupationDeckBagPositionTemp['x'], kOccupationDeckBagPositionTemp['y'], kOccupationDeckBagPositionTemp['z'] }
-    
-    eOccupationDeckBag = getObjectFromGUID("5b947c")
-    local eOccupationDeckBagPositionTemp = eOccupationDeckBag.getPosition()
-    eOccupationDeckBagPosition = { eOccupationDeckBagPositionTemp['x'], eOccupationDeckBagPositionTemp['y'] + 1.5, eOccupationDeckBagPositionTemp['z'] }
-    
-    iOccupationDeckBag = getObjectFromGUID("c4551b")
-    local iOccupationDeckBagPositionTemp = iOccupationDeckBag.getPosition()
-    iOccupationDeckBagPosition = { iOccupationDeckBagPositionTemp['x'], iOccupationDeckBagPositionTemp['y'] + 1.5, iOccupationDeckBagPositionTemp['z'] }
-    
-    occupationDeckGUIDs = { "5fd15d", "ba39bf", "61f6d6", "5c1922", "eec2e8", "1e6207", "997c19", "9879ec", "e4d037" }
-    
-    kOccupations1Player = getObjectFromGUID(occupationDeckGUIDs[1])
-    kOccupations3Players = getObjectFromGUID(occupationDeckGUIDs[2])
-    kOccupations4Players = getObjectFromGUID(occupationDeckGUIDs[3])
-    eOccupations1Player = getObjectFromGUID(occupationDeckGUIDs[4])
-    eOccupations3Players = getObjectFromGUID(occupationDeckGUIDs[5])
-    eOccupations4Players = getObjectFromGUID(occupationDeckGUIDs[6])
-    iOccupations1Player = getObjectFromGUID(occupationDeckGUIDs[7])
-    iOccupations3Players = getObjectFromGUID(occupationDeckGUIDs[8])
-    iOccupations4Players = getObjectFromGUID(occupationDeckGUIDs[9])
+    occupationShufflingZone = getObjectFromGUID(occupationShufflingZoneGUID)
+    occupationDeckPosition = getObjectPositionTable(occupationShufflingZone)
     
     initializeOneOccupationType(
         table.contains(deckTypes, "K"),
         playerCount,
-        kOccupations1Player,
-        kOccupations3Players,
-        kOccupations4Players,
+        getObjectFromGUID(occupationDeckGUIDs[1]),
+        getObjectFromGUID(occupationDeckGUIDs[2]),
+        getObjectFromGUID(occupationDeckGUIDs[3]),
         occupationDeckPosition,
-        kOccupationDeckBagPosition)
+        getObjectPositionTable(getObjectFromGUID(kDeckBagGUID)))
     
     initializeOneOccupationType(
         table.contains(deckTypes, "E"),
         playerCount,
-        eOccupations1Player,
-        eOccupations3Players,
-        eOccupations4Players,
+        getObjectFromGUID(occupationDeckGUIDs[4]),
+        getObjectFromGUID(occupationDeckGUIDs[5]),
+        getObjectFromGUID(occupationDeckGUIDs[6]),
         occupationDeckPosition,
-        eOccupationDeckBagPosition)
+        getObjectPositionTable(getObjectFromGUID(eDeckBagGUID)))
     
     initializeOneOccupationType(
         table.contains(deckTypes, "I"),
         playerCount,
-        iOccupations1Player,
-        iOccupations3Players,
-        iOccupations4Players,
+        getObjectFromGUID(occupationDeckGUIDs[7]),
+        getObjectFromGUID(occupationDeckGUIDs[8]),
+        getObjectFromGUID(occupationDeckGUIDs[9]),
         occupationDeckPosition,
-        iOccupationDeckBagPosition)
+        getObjectPositionTable(getObjectFromGUID(iDeckBagGUID)))
+end
 
-    -- Decks will merge and only one of the GUIDs will remain after the merger so lets find it.
-    occupationDeck = nil
-    for _,occupationDeckGUID in pairs(occupationDeckGUIDs) do
-        occupationDeck = getObjectFromGUID(occupationDeckGUID)
-        
-        if (occupationDeck ~= nil) then
-            break
-        end
-    end
-    
-    if (occupationDeck == nil) then
-        print("No occupation decks")
+
+function initializeOneMinorImprovementType(isCorrect, minorImprovements, minorImprovementDeckPosition, minorImprovementBagPosition)
+    if (isCorrect) then
+        minorImprovements.flip()
+        minorImprovements.setPosition(minorImprovementDeckPosition)
     else
-        print("Found occupation deck with GUID " .. occupationDeck.getGUID())
-        print("Shuffling occupations")
-        occupationDeck.shuffle()
-        occupationDeck.flip()
+        minorImprovements.setPosition(minorImprovementBagPosition)
     end
+end
+
+
+function initializeMinorImprovements(deckTypes)
+    minorImprovementShufflingZone = getObjectFromGUID(minorImprovementShufflingZoneGUID)
+    minorImprovementDeckPosition = getObjectPositionTable(minorImprovementShufflingZone)
+    
+    initializeOneMinorImprovementType(
+        table.contains(deckTypes, "K"),
+        getObjectFromGUID(minorImprovementDeckGUIDs[1]),
+        minorImprovementDeckPosition,
+        getObjectPositionTable(getObjectFromGUID(kDeckBagGUID)))
+        
+    initializeOneMinorImprovementType(
+        table.contains(deckTypes, "E"),
+        getObjectFromGUID(minorImprovementDeckGUIDs[2]),
+        minorImprovementDeckPosition,
+        getObjectPositionTable(getObjectFromGUID(eDeckBagGUID)))
+        
+    initializeOneMinorImprovementType(
+        table.contains(deckTypes, "I"),
+        getObjectFromGUID(minorImprovementDeckGUIDs[3]),
+        minorImprovementDeckPosition,
+        getObjectPositionTable(getObjectFromGUID(iDeckBagGUID)))
 end
 
 
@@ -478,9 +495,30 @@ function initializeBoard(playerCount, deckTypes)
     print("Initializing board for " .. playerCount .. " players")
     initializeActionCards(playerCount)
     initializeOccupations(playerCount, deckTypes)
+    initializeMinorImprovements(deckTypes)
 end
 
 function initializeWorkPhase()
+end
+
+--[[ The OnObjectEnterScriptingZone function. Called when an object enters a scripting zone. ]]
+function onObjectEnterScriptingZone(zone, object)
+    print("Object " .. object.getName() .. " type " .. object.name .. " GUID " .. object.getGUID() .. " entered Zone " .. zone.getName() .. " GUID " .. zone.getGUID())
+    if (zone.getGUID() == occupationShufflingZoneGUID and (object.name == "Deck" or object.name == "DeckCustom")) then
+        print("Shuffling occupations from deck " .. object.getName() .. " GUID " .. object.getGUID())
+        
+        object.shuffle()
+    
+        print("Dealing 7 occupations to each player")
+        object.dealToAll(7)
+    elseif (zone.getGUID() == minorImprovementShufflingZoneGUID and (object.name == "Deck" or object.name == "DeckCustom")) then
+        print("Shuffling minor improvements from deck " .. object.getName() .. " GUID " .. object.getGUID())
+        
+        object.shuffle()
+    
+        print("Dealing 7 minor improvements to each player")
+        object.dealToAll(7)        
+    end
 end
 
 --[[ The OnLoad function. Called when a game finishes loading. ]]
