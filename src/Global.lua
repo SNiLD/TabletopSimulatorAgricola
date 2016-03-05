@@ -32,6 +32,7 @@ end
 
 gameStarted = false
 playerCount = 0
+currentRoundNumber = 0
 deckTypes = {}
 playerColors = {}
 actionsRemaining = {}
@@ -44,6 +45,10 @@ workerGUIDs =
     Blue = { "cc5517", "d8d05d", "6b18da", "7c565a", "35d880" },
     Purple = { "317185", "1da0ea", "96be86", "8898f4", "c1abc2" }
 }
+homeZoneGUIDs = { White = "cddcd1", Red = "9d9005", Green = "0f79a9", Blue = "b4d2b7", Purple = "d9e998"  }
+actionCardScriptingZoneGUIDs = { "26d1fc", "2a6c15", "0e1397", "0af55c", "c6e3f3", "8fdd38" }
+actionBoardScriptingZoneGUIDs = { "a08297", "e9469a", "3a7f4d", "aa671d", "241264", "292428", "ac920e", "6e8819", "04f5b0", "e01044" }
+actionRoundScriptingZoneGUIDs = { "8658b7", "fe050d", "ce9a11", "2cd64d", "833759", "ba2965", "5b711c", "b4381a", "5b99b7", "a2c5f0", "dce35e", "f62afb", "ccfdc4", "934f90" }
 stage1CardDeckGUID = "77c9f7"
 stage2CardDeckGUID = "ac1369"
 stage3CardDeckGUID = "ceb91a"
@@ -346,6 +351,7 @@ function initializeBoard()
     initializeActionCards(playerCount, isFamilyGame)
     initializeOccupations(playerCount, deckTypes)
     initializeMinorImprovements(deckTypes)
+    startRound()
 end
 
 
@@ -371,16 +377,57 @@ function isEndOfRound()
     end
     
     print("No player has turns remaining")
-    
     return true
 end
 
 
+function returnWorker(object)
+    guid = object.getGUID()
+    for color, workerGUIDsForColor in pairs(workerGUIDs) do
+        for _, workerGUID in pairs(workerGUIDsForColor) do
+            if (guid == workerGUID) then
+                homeZone = getObjectFromGUID(homeZoneGUIDs[color])
+                object.setPositionSmooth(getObjectPositionTable(homeZone, nil))
+                return
+            end
+        end
+    end
+end
+
+
+function returnWorkersFromZone(zoneGUID)
+    zone = getObjectFromGUID(zoneGUID)
+    
+    for _, object in pairs(zone.getObjects()) do
+        returnWorker(object)
+    end
+end
+
+
+function returnWorkers()
+    print("Returning workers")
+    
+    for _, guid in pairs(actionCardScriptingZoneGUIDs) do
+        returnWorkersFromZone(guid)
+    end
+    for _, guid in pairs(actionBoardScriptingZoneGUIDs) do
+        returnWorkersFromZone(guid)
+    end
+    for _, guid in pairs(actionRoundScriptingZoneGUIDs) do
+        returnWorkersFromZone(guid)
+    end    
+end
+
+
 function startRound()
+    currentRoundNumber = currentRoundNumber + 1
+    print("Starting round " .. currentRoundNumber)
 end
 
 
 function endRound()
+    print("Ending round " .. currentRoundNumber)
+    returnWorkers()
 end
 
 
