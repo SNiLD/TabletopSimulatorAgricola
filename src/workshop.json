@@ -1,14 +1,14 @@
 {
   "SaveName": "Agricola Scripting Workshop ",
   "GameMode": "Agricola",
-  "Date": "2/28/2016 10:04:44 PM",
+  "Date": "3/5/2016 1:54:14 PM",
   "Table": "Table_Custom",
   "TableURL": "http://images.cryhavok.org/d/14762-1/Black+Background+Wood+3+by+Freeman.jpg",
   "Sky": "Sky_Field",
-  "Note": "player_count=5\ndeck_types=k,e,i",
+  "Note": "",
   "Rules": "",
   "PlayerTurn": "",
-  "LuaScript": "local inspect ={\r\n  _VERSION = 'inspect.lua 3.0.2',\r\n  _URL     = 'http://github.com/kikito/inspect.lua',\r\n  _DESCRIPTION = 'human-readable representations of tables',\r\n  _LICENSE = [[\r\n    MIT LICENSE\r\n\r\n    Copyright (c) 2013 Enrique García Cota\r\n\r\n    Permission is hereby granted, free of charge, to any person obtaining a\r\n    copy of this software and associated documentation files (the\r\n    \"Software\"), to deal in the Software without restriction, including\r\n    without limitation the rights to use, copy, modify, merge, publish,\r\n    distribute, sublicense, and/or sell copies of the Software, and to\r\n    permit persons to whom the Software is furnished to do so, subject to\r\n    the following conditions:\r\n\r\n    The above copyright notice and this permission notice shall be included\r\n    in all copies or substantial portions of the Software.\r\n\r\n    THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS\r\n    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\r\n    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.\r\n    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY\r\n    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,\r\n    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE\r\n    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\r\n  ]]\r\n}\r\n\r\ninspect.KEY       = setmetatable({}, {__tostring = function() return 'inspect.KEY' end})\r\ninspect.METATABLE = setmetatable({}, {__tostring = function() return 'inspect.METATABLE' end})\r\n\r\n-- returns the length of a table, ignoring __len (if it exists)\r\nlocal rawlen = _G.rawlen or function(t) return #t end\r\n\r\n-- Apostrophizes the string if it has quotes, but not aphostrophes\r\n-- Otherwise, it returns a regular quoted string\r\nlocal function smartQuote(str)\r\n  if str:match('\"') and not str:match(\"'\") then\r\n    return \"'\" .. str .. \"'\"\r\n  end\r\n  return '\"' .. str:gsub('\"', '\\\\\"') .. '\"'\r\nend\r\n\r\nlocal controlCharsTranslation = {\r\n  [\"\\a\"] = \"\\\\a\",  [\"\\b\"] = \"\\\\b\", [\"\\f\"] = \"\\\\f\",  [\"\\n\"] = \"\\\\n\",\r\n  [\"\\r\"] = \"\\\\r\",  [\"\\t\"] = \"\\\\t\", [\"\\v\"] = \"\\\\v\"\r\n}\r\n\r\nlocal function escape(str)\r\n  local result = str:gsub(\"\\\\\", \"\\\\\\\\\"):gsub(\"(%c)\", controlCharsTranslation)\r\n  return result\r\nend\r\n\r\nlocal function isIdentifier(str)\r\n  return type(str) == 'string' and str:match( \"^[_%a][_%a%d]*$\" )\r\nend\r\n\r\nlocal function isSequenceKey(k, length)\r\n  return type(k) == 'number'\r\n     and 1 <= k\r\n     and k <= length\r\n     and math.floor(k) == k\r\nend\r\n\r\nlocal defaultTypeOrders = {\r\n  ['number']   = 1, ['boolean']  = 2, ['string'] = 3, ['table'] = 4,\r\n  ['function'] = 5, ['userdata'] = 6, ['thread'] = 7\r\n}\r\n\r\nlocal function sortKeys(a, b)\r\n  local ta, tb = type(a), type(b)\r\n\r\n  -- strings and numbers are sorted numerically/alphabetically\r\n  if ta == tb and (ta == 'string' or ta == 'number') then return a < b end\r\n\r\n  local dta, dtb = defaultTypeOrders[ta], defaultTypeOrders[tb]\r\n  -- Two default types are compared according to the defaultTypeOrders table\r\n  if dta and dtb then return defaultTypeOrders[ta] < defaultTypeOrders[tb]\r\n  elseif dta     then return true  -- default types before custom ones\r\n  elseif dtb     then return false -- custom types after default ones\r\n  end\r\n\r\n  -- custom types are sorted out alphabetically\r\n  return ta < tb\r\nend\r\n\r\nlocal function getNonSequentialKeys(t)\r\n  local keys, length = {}, rawlen(t)\r\n  for k,_ in pairs(t) do\r\n    if not isSequenceKey(k, length) then table.insert(keys, k) end\r\n  end\r\n  table.sort(keys, sortKeys)\r\n  return keys\r\nend\r\n\r\nlocal function getToStringResultSafely(t, mt)\r\n  local __tostring = type(mt) == 'table' and rawget(mt, '__tostring')\r\n  local str, ok\r\n  if type(__tostring) == 'function' then\r\n    ok, str = pcall(__tostring, t)\r\n    str = ok and str or 'error: ' .. tostring(str)\r\n  end\r\n  if type(str) == 'string' and #str > 0 then return str end\r\nend\r\n\r\nlocal maxIdsMetaTable = {\r\n  __index = function(self, typeName)\r\n    rawset(self, typeName, 0)\r\n    return 0\r\n  end\r\n}\r\n\r\nlocal idsMetaTable = {\r\n  __index = function (self, typeName)\r\n    local col = {}\r\n    rawset(self, typeName, col)\r\n    return col\r\n  end\r\n}\r\n\r\nlocal function countTableAppearances(t, tableAppearances)\r\n  tableAppearances = tableAppearances or {}\r\n\r\n  if type(t) == 'table' then\r\n    if not tableAppearances[t] then\r\n      tableAppearances[t] = 1\r\n      for k,v in pairs(t) do\r\n        countTableAppearances(k, tableAppearances)\r\n        countTableAppearances(v, tableAppearances)\r\n      end\r\n      countTableAppearances(getmetatable(t), tableAppearances)\r\n    else\r\n      tableAppearances[t] = tableAppearances[t] + 1\r\n    end\r\n  end\r\n\r\n  return tableAppearances\r\nend\r\n\r\nlocal copySequence = function(s)\r\n  local copy, len = {}, #s\r\n  for i=1, len do copy[i] = s[i] end\r\n  return copy, len\r\nend\r\n\r\nlocal function makePath(path, ...)\r\n  local keys = {...}\r\n  local newPath, len = copySequence(path)\r\n  for i=1, #keys do\r\n    newPath[len + i] = keys[i]\r\n  end\r\n  return newPath\r\nend\r\n\r\nlocal function processRecursive(process, item, path)\r\n  if item == nil then return nil end\r\n\r\n  local processed = process(item, path)\r\n  if type(processed) == 'table' then\r\n    local processedCopy = {}\r\n    local processedKey\r\n\r\n    for k,v in pairs(processed) do\r\n      processedKey = processRecursive(process, k, makePath(path, k, inspect.KEY))\r\n      if processedKey ~= nil then\r\n        processedCopy[processedKey] = processRecursive(process, v, makePath(path, processedKey))\r\n      end\r\n    end\r\n\r\n    local mt  = processRecursive(process, getmetatable(processed), makePath(path, inspect.METATABLE))\r\n    setmetatable(processedCopy, mt)\r\n    processed = processedCopy\r\n  end\r\n  return processed\r\nend\r\n\r\n\r\n-------------------------------------------------------------------\r\n\r\nlocal Inspector = {}\r\nlocal Inspector_mt = {__index = Inspector}\r\n\r\nfunction Inspector:puts(...)\r\n  local args   = {...}\r\n  local buffer = self.buffer\r\n  local len    = #buffer\r\n  for i=1, #args do\r\n    len = len + 1\r\n    buffer[len] = tostring(args[i])\r\n  end\r\nend\r\n\r\nfunction Inspector:down(f)\r\n  self.level = self.level + 1\r\n  f()\r\n  self.level = self.level - 1\r\nend\r\n\r\nfunction Inspector:tabify()\r\n  self:puts(self.newline, string.rep(self.indent, self.level))\r\nend\r\n\r\nfunction Inspector:alreadyVisited(v)\r\n  return self.ids[type(v)][v] ~= nil\r\nend\r\n\r\nfunction Inspector:getId(v)\r\n  local tv = type(v)\r\n  local id = self.ids[tv][v]\r\n  if not id then\r\n    id              = self.maxIds[tv] + 1\r\n    self.maxIds[tv] = id\r\n    self.ids[tv][v] = id\r\n  end\r\n  return id\r\nend\r\n\r\nfunction Inspector:putKey(k)\r\n  if isIdentifier(k) then return self:puts(k) end\r\n  self:puts(\"[\")\r\n  self:putValue(k)\r\n  self:puts(\"]\")\r\nend\r\n\r\nfunction Inspector:putTable(t)\r\n  if t == inspect.KEY or t == inspect.METATABLE then\r\n    self:puts(tostring(t))\r\n  elseif self:alreadyVisited(t) then\r\n    self:puts('<table ', self:getId(t), '>')\r\n  elseif self.level >= self.depth then\r\n    self:puts('{...}')\r\n  else\r\n    if self.tableAppearances[t] > 1 then self:puts('<', self:getId(t), '>') end\r\n\r\n    local nonSequentialKeys = getNonSequentialKeys(t)\r\n    local length            = rawlen(t)\r\n    local mt                = getmetatable(t)\r\n    local toStringResult    = getToStringResultSafely(t, mt)\r\n\r\n    self:puts('{')\r\n    self:down(function()\r\n      if toStringResult then\r\n        self:puts(' -- ', escape(toStringResult))\r\n        if length >= 1 then self:tabify() end\r\n      end\r\n\r\n      local count = 0\r\n      for i=1, length do\r\n        if count > 0 then self:puts(',') end\r\n        self:puts(' ')\r\n        self:putValue(t[i])\r\n        count = count + 1\r\n      end\r\n\r\n      for _,k in ipairs(nonSequentialKeys) do\r\n        if count > 0 then self:puts(',') end\r\n        self:tabify()\r\n        self:putKey(k)\r\n        self:puts(' = ')\r\n        self:putValue(t[k])\r\n        count = count + 1\r\n      end\r\n\r\n      if mt then\r\n        if count > 0 then self:puts(',') end\r\n        self:tabify()\r\n        self:puts('<metatable> = ')\r\n        self:putValue(mt)\r\n      end\r\n    end)\r\n\r\n    if #nonSequentialKeys > 0 or mt then -- result is multi-lined. Justify closing }\r\n      self:tabify()\r\n    elseif length > 0 then -- array tables have one extra space before closing }\r\n      self:puts(' ')\r\n    end\r\n\r\n    self:puts('}')\r\n  end\r\nend\r\n\r\nfunction Inspector:putValue(v)\r\n  local tv = type(v)\r\n\r\n  if tv == 'string' then\r\n    self:puts(smartQuote(escape(v)))\r\n  elseif tv == 'number' or tv == 'boolean' or tv == 'nil' then\r\n    self:puts(tostring(v))\r\n  elseif tv == 'table' then\r\n    self:putTable(v)\r\n  else\r\n    self:puts('<',tv,' ',self:getId(v),'>')\r\n  end\r\nend\r\n\r\n-------------------------------------------------------------------\r\n\r\nfunction inspect.inspect(root, options)\r\n  options       = options or {}\r\n\r\n  local depth   = options.depth   or math.huge\r\n  local newline = options.newline or '\\n'\r\n  local indent  = options.indent  or '  '\r\n  local process = options.process\r\n\r\n  if process then\r\n    root = processRecursive(process, root, {})\r\n  end\r\n\r\n  local inspector = setmetatable({\r\n    depth            = depth,\r\n    buffer           = {},\r\n    level            = 0,\r\n    ids              = setmetatable({}, idsMetaTable),\r\n    maxIds           = setmetatable({}, maxIdsMetaTable),\r\n    newline          = newline,\r\n    indent           = indent,\r\n    tableAppearances = countTableAppearances(root)\r\n  }, Inspector_mt)\r\n\r\n  inspector:putValue(root)\r\n\r\n  return table.concat(inspector.buffer)\r\nend\r\n\r\nsetmetatable(inspect, { __call = function(_, ...) return inspect.inspect(...) end })\r\n\r\nfunction split(str, delim)\r\n    local result,pat,lastPos = {},\"(.-)\" .. delim .. \"()\",1\r\n    for part, pos in string.gfind(str, pat) do\r\n        table.insert(result, part); lastPos = pos\r\n    end\r\n    table.insert(result, string.sub(str, lastPos))\r\n    return result\r\nend\r\n\r\nfunction table.contains(table, element)\r\n  for _, value in pairs(table) do\r\n    if value == element then\r\n      return true\r\n    end\r\n  end\r\n  return false\r\nend\r\n\r\nfunction initializeActionCards(playerCount)\r\n    print(\"Initializing player cards for \" .. playerCount .. \" players\")\r\n    actionCards5Players = getObjectFromGUID(\"590540\")\r\n    actionCards4Players = getObjectFromGUID(\"2dd967\")\r\n    actionCards3Players = getObjectFromGUID(\"4bdd23\")\r\n    actionCardsBag = getObjectFromGUID(\"87e8b1\")\r\n    local actionCardsPositionTemp = actionCardsBag.getPosition()\r\n    actionCardsBagPosition = { actionCardsPositionTemp['x'], actionCardsPositionTemp['y'] + 1.5, actionCardsPositionTemp['z'] }\r\n    \r\n    if (playerCount == 5) then\r\n        actionCards4Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards3Players.setPositionSmooth(actionCardsBagPosition)\r\n        \r\n        actionCards5Players.setPosition({-13.1250954, 1.35851014, -3.91666961})\r\n        actionCards5Players.takeCardFromDeck({-13.1315432, 1.35851169,-8.331627, 0.0, 180.0, 0.0}, false)        \r\n        actionCards5Players.takeCardFromDeck({-10.2916288, 1.35850871, 0.2497616, 0.0, 180.0, 0.0}, false)\r\n        actionCards5Players.takeCardFromDeck({-10.1748323, 1.35851026, -4.013337, 0.0, 180.0, 0.0}, false)\r\n        actionCards5Players.takeCardFromDeck({-10.298852, 1.35851181, -8.452009, 0.0, 180.0, 0.0}, false)\r\n        actionCards5Players.takeCardFromDeck({-13.19608, 1.35850859, 0.2789259, 0.0, 180.0, 0.0}, false)\r\n    elseif (playerCount == 4) then\r\n    elseif (playerCount == 3) then\r\n    elseif (playerCount == 2 or playerCount == 1) then\r\n        actionCards5Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards4Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards3Players.setPositionSmooth(actionCardsBagPosition)\r\n    end\r\nend\r\n\r\n\r\nfunction initializeOneOccupationType(isCorrect, playerCount, occupations1Player, occupations3Players, occupations4Players, occupationDeckPosition, occupationBagPosition)\r\n    if (isCorrect) then\r\n        occupations1Player.setPosition(occupationDeckPosition)\r\n        \r\n        if (playerCount >= 3) then\r\n            occupations3Players.setPosition(occupationDeckPosition)\r\n            \r\n            if (playerCount >= 4) then\r\n                occupations4Players.setPosition(occupationDeckPosition)\r\n            else\r\n                occupations4Players.setPosition(occupationBagPosition)\r\n            end\r\n        else\r\n            occupations3Players.setPosition(occupationBagPosition)\r\n            occupations4Players.setPosition(occupationBagPosition)\r\n        end\r\n    else\r\n        occupations1Player.setPosition(occupationBagPosition)\r\n        occupations3Players.setPosition(occupationBagPosition)\r\n        occupations4Players.setPosition(occupationBagPosition)\r\n    end\r\nend\r\n\r\n\r\nfunction initializeOccupations(playerCount, deckTypes)\r\n    occupationDeckPosition = { -16.7445259, 1.02870941, 4.87904072 }\r\n    -- occupationsDeck = spawnObject('CustomDeck', occupationDeckPosition)\r\n    \r\n    kOccupationDeckBag = getObjectFromGUID(\"236391\")\r\n    local kOccupationDeckBagPositionTemp = kOccupationDeckBag.getPosition()\r\n    kOccupationDeckBagPosition = { kOccupationDeckBagPositionTemp['x'], kOccupationDeckBagPositionTemp['y'], kOccupationDeckBagPositionTemp['z'] }\r\n    \r\n    eOccupationDeckBag = getObjectFromGUID(\"5b947c\")\r\n    local eOccupationDeckBagPositionTemp = eOccupationDeckBag.getPosition()\r\n    eOccupationDeckBagPosition = { eOccupationDeckBagPositionTemp['x'], eOccupationDeckBagPositionTemp['y'] + 1.5, eOccupationDeckBagPositionTemp['z'] }\r\n    \r\n    iOccupationDeckBag = getObjectFromGUID(\"c4551b\")\r\n    local iOccupationDeckBagPositionTemp = iOccupationDeckBag.getPosition()\r\n    iOccupationDeckBagPosition = { iOccupationDeckBagPositionTemp['x'], iOccupationDeckBagPositionTemp['y'] + 1.5, iOccupationDeckBagPositionTemp['z'] }\r\n    \r\n    occupationDeckGUIDs = { \"5fd15d\", \"ba39bf\", \"61f6d6\", \"5c1922\", \"eec2e8\", \"1e6207\", \"997c19\", \"9879ec\", \"e4d037\" }\r\n    \r\n    kOccupations1Player = getObjectFromGUID(occupationDeckGUIDs[1])\r\n    kOccupations3Players = getObjectFromGUID(occupationDeckGUIDs[2])\r\n    kOccupations4Players = getObjectFromGUID(occupationDeckGUIDs[3])\r\n    eOccupations1Player = getObjectFromGUID(occupationDeckGUIDs[4])\r\n    eOccupations3Players = getObjectFromGUID(occupationDeckGUIDs[5])\r\n    eOccupations4Players = getObjectFromGUID(occupationDeckGUIDs[6])\r\n    iOccupations1Player = getObjectFromGUID(occupationDeckGUIDs[7])\r\n    iOccupations3Players = getObjectFromGUID(occupationDeckGUIDs[8])\r\n    iOccupations4Players = getObjectFromGUID(occupationDeckGUIDs[9])\r\n    \r\n    initializeOneOccupationType(\r\n        table.contains(deckTypes, \"K\"),\r\n        playerCount,\r\n        kOccupations1Player,\r\n        kOccupations3Players,\r\n        kOccupations4Players,\r\n        occupationDeckPosition,\r\n        kOccupationDeckBagPosition)\r\n    \r\n    initializeOneOccupationType(\r\n        table.contains(deckTypes, \"E\"),\r\n        playerCount,\r\n        eOccupations1Player,\r\n        eOccupations3Players,\r\n        eOccupations4Players,\r\n        occupationDeckPosition,\r\n        eOccupationDeckBagPosition)\r\n    \r\n    initializeOneOccupationType(\r\n        table.contains(deckTypes, \"I\"),\r\n        playerCount,\r\n        iOccupations1Player,\r\n        iOccupations3Players,\r\n        iOccupations4Players,\r\n        occupationDeckPosition,\r\n        iOccupationDeckBagPosition)\r\n\r\n    -- Decks will merge and only one of the GUIDs will remain after the merger so lets find it.\r\n    occupationDeck = nil\r\n    for _,occupationDeckGUID in pairs(occupationDeckGUIDs) do\r\n        occupationDeck = getObjectFromGUID(occupationDeckGUID)\r\n        \r\n        if (occupationDeck ~= nil) then\r\n            break\r\n        end\r\n    end\r\n    \r\n    if (occupationDeck == nil) then\r\n        print(\"No occupation decks\")\r\n    else\r\n        print(\"Found occupation deck with GUID \" .. occupationDeck.getGUID())\r\n        print(\"Shuffling occupations\")\r\n        occupationDeck.shuffle()\r\n        occupationDeck.flip()\r\n    end\r\nend\r\n\r\n\r\nfunction initializeBoard(playerCount, deckTypes)\r\n    print(\"Initializing board for \" .. playerCount .. \" players\")\r\n    initializeActionCards(playerCount)\r\n    initializeOccupations(playerCount, deckTypes)\r\nend\r\n\r\nfunction initializeWorkPhase()\r\nend\r\n\r\n--[[ The OnLoad function. Called when a game finishes loading. ]]\r\nfunction onload ()\r\n    notes = {}\r\n    for variable, value in string.gmatch(getNotes(), \"([%w_]+)=([%w,]+)[\\n]*\") do\r\n        notes[variable] = value\r\n    end\r\n    \r\n    print(inspect(notes))\r\n    \r\n    players = getSeatedPlayers()\r\n    deckTypes = {\"K\", \"E\", \"I\"}\r\n    \r\n    playerCount = #players\r\n    \r\n    if (notes[\"player_count\"] ~= nil) then\r\n        playerCount = tonumber(notes[\"player_count\"])\r\n    end\r\n    \r\n    if (notes[\"deck_types\"] ~= nil) then\r\n        deckTypes = {}\r\n        for value in string.gmatch(notes[\"deck_types\"], \"(%w+)[,$]?\") do\r\n            table.insert(deckTypes, string.upper(value))\r\n        end\r\n    end\r\n    \r\n    print(\"Setup for \" .. playerCount .. \" players with \" .. inspect(deckTypes) .. \" decks\")\r\n    \r\n    initializeBoard(playerCount, deckTypes)\r\nend\r\n",
+  "LuaScript": "--[[ Helpers ]]\r\n\r\nfunction table.contains(table, element)\r\n  for _, value in pairs(table) do\r\n    if value == element then\r\n      return true\r\n    end\r\n  end\r\n  return false\r\nend\r\n\r\n\r\nfunction table.toString(table, separator)\r\n    result = \"\"\r\n    for _, value in pairs(table) do\r\n        if (string.len(result) == 0) then\r\n            result = result .. value\r\n        else\r\n            result = result .. separator .. value\r\n        end\r\n    end\r\n    return result\r\nend\r\n\r\n\r\nfunction dummy()\r\nend\r\n\r\n\r\n--[[ Globals ]]\r\n\r\n\r\ngameStarted = false\r\nplayerCount = 0\r\ndeckTypes = {}\r\nstage1CardDeckGUID = \"77c9f7\"\r\nstage2CardDeckGUID = \"ac1369\"\r\nstage3CardDeckGUID = \"ceb91a\"\r\nstage4CardDeckGUID = \"8f6c74\"\r\nstage5CardDeckGUID = \"d78dfb\"\r\nkDeckBagGUID = \"236391\"\r\neDeckBagGUID = \"5b947c\"\r\niDeckBagGUID = \"c4551b\"\r\noccupationDeckGUIDs = { \"5fd15d\", \"ba39bf\", \"61f6d6\", \"5c1922\", \"eec2e8\", \"1e6207\", \"997c19\", \"9879ec\", \"e4d037\" }\r\noccupationShufflingZoneGUID = \"d46db2\"\r\nminorImprovementDeckGUIDs = { \"fd9eea\", \"aaa166\", \"6de5b0\" }\r\nminorImprovementShufflingZoneGUID = \"286fa6\"\r\n\r\n\r\n--[[ These are hack functions because the API does not work correctly atm. ]]\r\n\r\nfunction getObjectPositionTable(object, adjustment)\r\n    local position = object.getPosition()\r\n    result = {}\r\n    positionKeys = {'x','y','z'}\r\n    \r\n    if (adjustment == nil) then\r\n        result = { position['x'], position['y'], position['z'] }\r\n    else\r\n        for key, value in pairs(adjustment) do\r\n            result[key] = position[positionKeys[key]] + value\r\n        end\r\n    end\r\n    \r\n    return result\r\nend\r\n\r\n\r\nfunction setDeckTypes(types)\r\n    deckTypes = types\r\nend\r\n\r\n--[[ Private functions ]]\r\n\r\n\r\nfunction initializeGameStage(stageCardDeckGUID, positions)\r\n    local parameters = {}\r\n    parameters.position = {}\r\n    parameters.rotation = {0.0, 180.0, 180.0}\r\n    parameters.callback = \"\"\r\n    parameters.params = {}\r\n    \r\n    stageCardDeck = getObjectFromGUID(stageCardDeckGUID)\r\n    \r\n    print(\"Shuffling \" .. stageCardDeck.getName() .. \" cards\")\r\n    stageCardDeck.shuffle()\r\n    \r\n    for _, position in pairs(positions) do\r\n        parameters.position = position\r\n        stageCardDeck.takeObject(parameters)        \r\n    end\r\nend\r\n\r\n\r\nfunction initializeGameStageCards()\r\n    initializeGameStage(\r\n        stage1CardDeckGUID,\r\n        {\r\n            {-2.63777614, 1.30030215, 0.194500551},\r\n            {0.397731841, 1.26712489, 0.03501895},\r\n            {0.316840023, 1.2755394, -4.122939}\r\n        })\r\n    initializeGameStage(\r\n        stage2CardDeckGUID,\r\n        {\r\n            {3.30984449, 1.231528, 0.00103998382},\r\n            {3.24591732, 1.23985708, -4.213084}\r\n        })\r\n    initializeGameStage(\r\n        stage3CardDeckGUID,\r\n        {\r\n            {7.650797, 1.205321, -3.60009027}\r\n        })\r\n    initializeGameStage(\r\n        stage4CardDeckGUID,\r\n        {\r\n            {10.4956465, 1.205321, -3.554801}\r\n        })\r\n    initializeGameStage(\r\n        stage5CardDeckGUID,\r\n        {\r\n            {13.5662766, 1.20532107, -3.49873352}\r\n        })\r\nend\r\n\r\n\r\nfunction initializeActionCards(playerCount)\r\n    print(\"Initializing player cards for \" .. playerCount .. \" players\")\r\n    actionCards5Players = getObjectFromGUID(\"590540\")\r\n    actionCards4Players = getObjectFromGUID(\"2dd967\")\r\n    actionCards3Players = getObjectFromGUID(\"4bdd23\")\r\n    actionCardsBag = getObjectFromGUID(\"87e8b1\")\r\n    actionCardsBagPosition = getObjectPositionTable(actionCardsBag, {0.0, 1.5, 0.0})\r\n    \r\n    if (playerCount == 5) then\r\n        actionCards4Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards3Players.setPositionSmooth(actionCardsBagPosition)\r\n        \r\n        actionCards5Players.setPosition({-13.1250954, 1.35851014, -3.91666961})\r\n        \r\n        local parameters = {}\r\n        parameters.position = {-13.1315432, 1.35851169,-8.331627}\r\n        parameters.rotation = {0.0, 180.0, 0.0}\r\n        parameters.callback = \"\"\r\n        parameters.params = {}\r\n        \r\n        actionCards5Players.takeObject(parameters)\r\n        parameters.position = {-10.2916288, 1.35850871, 0.2497616}\r\n        actionCards5Players.takeObject(parameters)\r\n        parameters.position = {-10.1748323, 1.35851026, -4.013337}\r\n        actionCards5Players.takeObject(parameters)\r\n        parameters.position = {-10.298852, 1.35851181, -8.452009}\r\n        actionCards5Players.takeObject(parameters)\r\n        parameters.position = {-13.19608, 1.35850859, 0.2789259}\r\n        actionCards5Players.takeObject(parameters)\r\n    elseif (playerCount == 4) then\r\n    elseif (playerCount == 3) then\r\n    elseif (playerCount == 2 or playerCount == 1) then\r\n        actionCards5Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards4Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards3Players.setPositionSmooth(actionCardsBagPosition)\r\n    end\r\nend\r\n\r\n\r\nfunction initializeOneOccupationType(isCorrect, playerCount, occupations1Player, occupations3Players, occupations4Players, occupationDeckPosition, occupationBagPosition)\r\n    if (isCorrect) then\r\n        occupations1Player.flip()\r\n        occupations1Player.setPosition(occupationDeckPosition)\r\n        \r\n        if (playerCount >= 3) then\r\n            occupations3Players.flip()\r\n            occupations3Players.setPosition(occupationDeckPosition)\r\n            \r\n            if (playerCount >= 4) then\r\n                occupations4Players.flip()\r\n                occupations4Players.setPosition(occupationDeckPosition)\r\n            else\r\n                occupations4Players.setPositionSmooth(occupationBagPosition)\r\n            end\r\n        else\r\n            occupations3Players.setPositionSmooth(occupationBagPosition)\r\n            occupations4Players.setPositionSmooth(occupationBagPosition)\r\n        end\r\n    else\r\n        occupations1Player.setPositionSmooth(occupationBagPosition)\r\n        occupations3Players.setPositionSmooth(occupationBagPosition)\r\n        occupations4Players.setPositionSmooth(occupationBagPosition)\r\n    end\r\nend\r\n\r\n\r\nfunction initializeOccupations(playerCount, deckTypes)\r\n    occupationShufflingZone = getObjectFromGUID(occupationShufflingZoneGUID)\r\n    occupationDeckPosition = getObjectPositionTable(occupationShufflingZone, nil)\r\n    \r\n    initializeOneOccupationType(\r\n        table.contains(deckTypes, \"K\"),\r\n        playerCount,\r\n        getObjectFromGUID(occupationDeckGUIDs[1]),\r\n        getObjectFromGUID(occupationDeckGUIDs[2]),\r\n        getObjectFromGUID(occupationDeckGUIDs[3]),\r\n        occupationDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(kDeckBagGUID), {0.0, 1.5, 0.0}))\r\n    \r\n    initializeOneOccupationType(\r\n        table.contains(deckTypes, \"E\"),\r\n        playerCount,\r\n        getObjectFromGUID(occupationDeckGUIDs[4]),\r\n        getObjectFromGUID(occupationDeckGUIDs[5]),\r\n        getObjectFromGUID(occupationDeckGUIDs[6]),\r\n        occupationDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(eDeckBagGUID), {0.0, 1.5, 0.0}))\r\n    \r\n    initializeOneOccupationType(\r\n        table.contains(deckTypes, \"I\"),\r\n        playerCount,\r\n        getObjectFromGUID(occupationDeckGUIDs[7]),\r\n        getObjectFromGUID(occupationDeckGUIDs[8]),\r\n        getObjectFromGUID(occupationDeckGUIDs[9]),\r\n        occupationDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(iDeckBagGUID), {0.0, 1.5, 0.0}))\r\nend\r\n\r\n\r\nfunction initializeOneMinorImprovementType(isCorrect, minorImprovements, minorImprovementDeckPosition, minorImprovementBagPosition)\r\n    if (isCorrect) then\r\n        minorImprovements.flip()\r\n        minorImprovements.setPosition(minorImprovementDeckPosition)\r\n    else\r\n        minorImprovements.setPositionSmooth(minorImprovementBagPosition)\r\n    end\r\nend\r\n\r\n\r\nfunction initializeMinorImprovements(deckTypes)\r\n    minorImprovementShufflingZone = getObjectFromGUID(minorImprovementShufflingZoneGUID)\r\n    minorImprovementDeckPosition = getObjectPositionTable(minorImprovementShufflingZone, nil)\r\n    \r\n    initializeOneMinorImprovementType(\r\n        table.contains(deckTypes, \"K\"),\r\n        getObjectFromGUID(minorImprovementDeckGUIDs[1]),\r\n        minorImprovementDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(kDeckBagGUID), {0.0, 1.5, 0.0}))\r\n        \r\n    initializeOneMinorImprovementType(\r\n        table.contains(deckTypes, \"E\"),\r\n        getObjectFromGUID(minorImprovementDeckGUIDs[2]),\r\n        minorImprovementDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(eDeckBagGUID), {0.0, 1.5, 0.0}))\r\n        \r\n    initializeOneMinorImprovementType(\r\n        table.contains(deckTypes, \"I\"),\r\n        getObjectFromGUID(minorImprovementDeckGUIDs[3]),\r\n        minorImprovementDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(iDeckBagGUID), {0.0, 1.5, 0.0}))\r\nend\r\n\r\n\r\n--[[ Global functions ]]\r\n\r\n\r\nfunction initializeBoard()\r\n    if (gameStarted) then\r\n        print(\"Game already started.\")\r\n        return\r\n    end\r\n    \r\n    gameStarted = true\r\n    \r\n    players = getSeatedPlayers()\r\n    \r\n    if (playerCount < #players) then\r\n        print(\"Game was setup for \" .. playerCount .. \" players but currently \" .. #players .. \" players seated. Adjusting for seated player count.\")\r\n        playerCount = #players\r\n    end\r\n\r\n    print(\"Initializing board for \" .. playerCount .. \" players with decks '\" .. table.toString(deckTypes, \",\") .. \"'\")\r\n    initializeGameStageCards()\r\n    initializeActionCards(playerCount)\r\n    initializeOccupations(playerCount, deckTypes)\r\n    initializeMinorImprovements(deckTypes)\r\nend\r\n\r\n\r\nfunction initializeWorkPhase()\r\nend\r\n\r\n\r\nfunction dealOccupations(object)\r\n    print(\"Shuffling occupations from deck \" .. object.getName() .. \" GUID \" .. object.getGUID())\r\n    \r\n    object.shuffle()\r\n\r\n    print(\"Dealing 7 occupations to each player\")\r\n    object.dealToAll(7)\r\nend\r\n\r\n\r\nfunction dealMinorImprovements(object)\r\n    print(\"Shuffling minor improvements from deck \" .. object.getName() .. \" GUID \" .. object.getGUID())\r\n    \r\n    object.shuffle()\r\n\r\n    print(\"Dealing 7 minor improvements to each player\")\r\n    object.dealToAll(7)\r\nend\r\n\r\n\r\n--[[ Even hooks ]]\r\n\r\nfunction onObjectEnterScriptingZone(zone, object)\r\n    print(\"Object \" .. object.getName() .. \" type \" .. object.name .. \" GUID \" .. object.getGUID() .. \" entered Zone \" .. zone.getName() .. \" GUID \" .. zone.getGUID())\r\n    if (zone.getGUID() == occupationShufflingZoneGUID and (object.name == \"Deck\" or object.name == \"DeckCustom\")) then\r\n        dealOccupations(object)\r\n    elseif (zone.getGUID() == minorImprovementShufflingZoneGUID and (object.name == \"Deck\" or object.name == \"DeckCustom\")) then\r\n        dealMinorImprovements(object)\r\n    end\r\nend\r\n\r\nfunction onObjectLeaveScriptingZone(zone, object)\r\n    print(\"Object \" .. object.getName() .. \" type \" .. object.name .. \" GUID \" .. object.getGUID() .. \" left Zone \" .. zone.getName() .. \" GUID \" .. zone.getGUID())\r\nend\r\n\r\n\r\n-- function update()\r\n-- end\r\n\r\nfunction onload()\r\nend\r\n",
   "Grid": {
     "Type": 0,
     "Lines": false,
@@ -32,175 +32,165 @@
         "Color": "Blue",
         "Transform": {
           "posX": 23.6700039,
-          "posY": 3.29332733,
+          "posY": 3.29324245,
           "posZ": 34.4527626,
-          "rotX": 8.13104251E-09,
+          "rotX": 2.75337033E-08,
           "rotY": 179.8,
-          "rotZ": 3.168387E-08,
+          "rotZ": 7.570902E-08,
           "scaleX": 15.3268776,
           "scaleY": 11.8970528,
           "scaleZ": 6.35014629
-        },
-        "GameMaster": false
+        }
       },
       {
         "Color": "Brown",
         "Transform": {
-          "posX": 5.995902E-07,
-          "posY": 3.29332733,
+          "posX": 1.67746316E-06,
+          "posY": 3.29324245,
           "posZ": -34.42515,
-          "rotX": -8.020393E-09,
-          "rotY": -9.60782E-11,
-          "rotZ": -3.171204E-08,
+          "rotX": -2.726922E-08,
+          "rotY": -3.30574124E-10,
+          "rotZ": -7.580447E-08,
           "scaleX": 15.3268919,
           "scaleY": 11.8970528,
           "scaleZ": 6.35014534
-        },
-        "GameMaster": false
+        }
       },
       {
         "Color": "Green",
         "Transform": {
           "posX": -23.6700039,
-          "posY": 3.29332733,
+          "posY": 3.29324245,
           "posZ": 34.43159,
-          "rotX": 8.020364E-09,
-          "rotY": 180.000153,
-          "rotZ": 3.17120481E-08,
+          "rotX": 2.72689373E-08,
+          "rotY": 180.000519,
+          "rotZ": 7.58046141E-08,
           "scaleX": 15.3268747,
           "scaleY": 11.8970528,
           "scaleZ": 6.35014534
-        },
-        "GameMaster": false
+        }
       },
       {
         "Color": "Orange",
         "Transform": {
           "posX": -51.6596222,
-          "posY": 3.29332733,
+          "posY": 3.29324245,
           "posZ": -11.7324,
-          "rotX": 3.17120765E-08,
-          "rotY": 90.0001,
-          "rotZ": -8.020375E-09,
-          "scaleX": 15.19401,
+          "rotX": 7.580474E-08,
+          "rotY": 90.0003357,
+          "rotZ": -2.72691025E-08,
+          "scaleX": 15.1939936,
           "scaleY": 11.8970528,
           "scaleZ": 6.40567875
-        },
-        "GameMaster": false
+        }
       },
       {
         "Color": "Pink",
         "Transform": {
           "posX": 51.64263,
-          "posY": 3.29332733,
+          "posY": 3.29324245,
           "posZ": -11.7324,
-          "rotX": -3.17120659E-08,
+          "rotX": -7.58046639E-08,
           "rotY": 270.0,
-          "rotZ": 8.020395E-09,
+          "rotZ": 2.72692962E-08,
           "scaleX": 15.1939974,
           "scaleY": 11.8970528,
           "scaleZ": 6.40567875
-        },
-        "GameMaster": false
+        }
       },
       {
         "Color": "Purple",
         "Transform": {
           "posX": 51.5785675,
-          "posY": 3.29332733,
+          "posY": 3.29324245,
           "posZ": 11.7324,
-          "rotX": -3.17120659E-08,
+          "rotX": -7.58046639E-08,
           "rotY": 270.0,
-          "rotZ": 8.020395E-09,
+          "rotZ": 2.72692962E-08,
           "scaleX": 15.1940022,
           "scaleY": 11.8970528,
           "scaleZ": 6.40567875
-        },
-        "GameMaster": false
+        }
       },
       {
         "Color": "Red",
         "Transform": {
           "posX": -23.6700039,
-          "posY": 3.29332733,
+          "posY": 3.29324245,
           "posZ": -34.42515,
-          "rotX": -8.020393E-09,
-          "rotY": -9.60782E-11,
-          "rotZ": -3.171204E-08,
+          "rotX": -2.726922E-08,
+          "rotY": -3.30574124E-10,
+          "rotZ": -7.580447E-08,
           "scaleX": 15.3268948,
           "scaleY": 11.8970528,
           "scaleZ": 6.35014534
-        },
-        "GameMaster": false
+        }
       },
       {
         "Color": "Teal",
         "Transform": {
-          "posX": 5.994747E-07,
-          "posY": 3.29332733,
+          "posX": 1.677066E-06,
+          "posY": 3.29324245,
           "posZ": 34.4527626,
-          "rotX": 8.131021E-09,
+          "rotX": 2.75336323E-08,
           "rotY": 179.800049,
-          "rotZ": 3.16838751E-08,
+          "rotZ": 7.5709E-08,
           "scaleX": 15.3268814,
           "scaleY": 11.8970528,
           "scaleZ": 6.35014629
-        },
-        "GameMaster": false
+        }
       },
       {
         "Color": "White",
         "Transform": {
           "posX": 23.6700039,
-          "posY": 3.29332733,
+          "posY": 3.29324245,
           "posZ": -34.2558136,
-          "rotX": -8.020393E-09,
-          "rotY": -9.60782E-11,
-          "rotZ": -3.171204E-08,
+          "rotX": -2.726922E-08,
+          "rotY": -3.30574124E-10,
+          "rotZ": -7.580447E-08,
           "scaleX": 15.3268747,
           "scaleY": 11.8970547,
           "scaleZ": 6.705048
-        },
-        "GameMaster": false
+        }
       },
       {
         "Color": "Yellow",
         "Transform": {
           "posX": -51.6596222,
-          "posY": 3.29332733,
+          "posY": 3.29324245,
           "posZ": 11.7324,
-          "rotX": 3.17120765E-08,
-          "rotY": 90.0001,
-          "rotZ": -8.020375E-09,
-          "scaleX": 15.194006,
+          "rotX": 7.580474E-08,
+          "rotY": 90.0003357,
+          "rotZ": -2.72691025E-08,
+          "scaleX": 15.19399,
           "scaleY": 11.8970528,
           "scaleZ": 6.40567875
-        },
-        "GameMaster": false
+        }
       }
     ]
   },
-  "DrawImage": "iVBORw0KGgoAAAANSUhEUgAAAWAAAADQCAYAAAA53LuNAAAFFElEQVR4Ae3QgQAAAADDoPlTH+SFUGHAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgwYMGDAgAEDBgy8DQx5DAABHyNK3wAAAABJRU5ErkJggg==",
+  "DrawImage": "iVBORw0KGgoAAAANSUhEUgAAAWAAAADQCAYAAAA53LuNAAAFkElEQVR4Ae3UMQ7CQBRDQYK4/5VDjuDiKURotrb8V1P49fIIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgACBTODImn5QdF7vzrPH9e685xYBAgQeK3DnAN9567HgPkaAQCrwTtuUESBAgMAsYIBnKkECBAi0Aga49dRGgACBWcAAz1SCBAgQaAUMcOupjQABArOAAZ6pBAkQINAKGODWUxsBAgRmAQM8UwkSIECgFTDArac2AgQIzAIGeKYSJECAQCtggFtPbQQIEJgFDPBMJUiAAIFWwAC3ntoIECAwCxjgmUqQAAECrYABbj21ESBAYBYwwDOVIAECBFoBA9x6aiNAgMAsYIBnKkECBAi0Aga49dRGgACBWcAAz1SCBAgQaAUMcOupjQABArOAAZ6pBAkQINAKGODWUxsBAgRmgc+cfGjwvN5Dv+ZbBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIECAAAECBAgQIEDgPwS+uYcQKJFywCIAAAAASUVORK5CYII=",
   "VectorLines": [],
   "ObjectStates": [
     {
       "Name": "Bag",
       "Transform": {
         "posX": 15.303401,
-        "posY": 0.7863417,
+        "posY": 0.7863503,
         "posZ": -25.48456,
-        "rotX": -1.16306655E-05,
-        "rotY": 0.15545325,
-        "rotZ": -5.478054E-06,
+        "rotX": -1.52918474E-05,
+        "rotY": 0.15545395,
+        "rotZ": -7.79626532E-07,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
       },
-      "Nickname": "Fences",
+      "Nickname": "White Fences",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
-        "g": 0.996079266,
+        "g": 0.996080756,
         "b": 0.99999994
       },
       "Locked": true,
@@ -788,22 +778,22 @@
     {
       "Name": "Bag",
       "Transform": {
-        "posX": 42.85453,
+        "posX": 42.8545265,
         "posY": 0.7863332,
         "posZ": 19.7180119,
-        "rotX": 5.391405E-07,
+        "rotX": 3.23812628E-06,
         "rotY": 345.151031,
-        "rotZ": -2.626327E-06,
+        "rotZ": -5.157424E-06,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
       },
-      "Nickname": "Fences",
+      "Nickname": "Purple Fences",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.5380777,
+        "r": 0.5382087,
         "g": 0.0,
-        "b": 0.4648806
+        "b": 0.465021342
       },
       "Locked": true,
       "Grid": true,
@@ -1391,20 +1381,20 @@
       "Name": "Bag",
       "Transform": {
         "posX": -14.4878044,
-        "posY": 0.7863426,
+        "posY": 0.786354065,
         "posZ": 24.98447,
-        "rotX": 2.43471459E-05,
-        "rotY": 0.182669654,
-        "rotZ": 3.285888E-06,
+        "rotX": 2.43550439E-05,
+        "rotY": 0.182670429,
+        "rotZ": 5.39322764E-06,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
       },
-      "Nickname": "Fences",
+      "Nickname": "Green Fences",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.16877681,
-        "g": 0.7295119,
+        "r": 0.1689096,
+        "g": 0.729600966,
         "b": 0.03921569
       },
       "Locked": true,
@@ -1993,21 +1983,21 @@
       "Name": "Bag",
       "Transform": {
         "posX": -13.8800659,
-        "posY": 0.7863377,
+        "posY": 0.7863403,
         "posZ": -24.9786282,
-        "rotX": 5.066959E-07,
-        "rotY": 0.161182672,
-        "rotZ": -1.16822468E-06,
+        "rotX": 5.228202E-07,
+        "rotY": 0.161183462,
+        "rotZ": -5.66675044E-06,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
       },
-      "Nickname": "Fences",
+      "Nickname": "Red Fences",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
-        "g": 0.15727444,
-        "b": 0.320939958
+        "g": 0.1574046,
+        "b": 0.3210883
       },
       "Locked": true,
       "Grid": true,
@@ -2597,19 +2587,19 @@
         "posX": 15.3200922,
         "posY": 0.7863409,
         "posZ": 25.112381,
-        "rotX": -2.342151E-05,
-        "rotY": 0.156809121,
-        "rotZ": 5.81294853E-06,
+        "rotX": -2.35715E-05,
+        "rotY": 0.156809971,
+        "rotZ": 9.70939254E-06,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
       },
-      "Nickname": "Fences",
+      "Nickname": "Blue Fences",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.149163932,
-        "g": 0.164854169,
-        "b": 0.945120454
+        "r": 0.149292216,
+        "g": 0.164986074,
+        "b": 0.9451404
       },
       "Locked": true,
       "Grid": true,
@@ -3197,7 +3187,7 @@
       "Name": "Bag",
       "Transform": {
         "posX": 28.3475685,
-        "posY": 0.7863456,
+        "posY": 0.786357045,
         "posZ": -7.34778452,
         "rotX": -1.71162E-05,
         "rotY": 359.5393,
@@ -4483,11 +4473,11 @@
       "Name": "Bag",
       "Transform": {
         "posX": 28.1527424,
-        "posY": 0.7863425,
+        "posY": 0.7863505,
         "posZ": -10.5538921,
-        "rotX": -1.01146652E-05,
-        "rotY": 90.17096,
-        "rotZ": 4.063488E-06,
+        "rotX": -1.03335033E-05,
+        "rotY": 90.17112,
+        "rotZ": 3.54168174E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -4495,8 +4485,8 @@
       "Nickname": "Wood/Clay House",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.559096932,
-        "g": 0.214733288,
+        "r": 0.5592237,
+        "g": 0.214874029,
         "b": 0.0
       },
       "Locked": true,
@@ -5046,12 +5036,12 @@
     {
       "Name": "Bag",
       "Transform": {
-        "posX": 53.7590752,
-        "posY": 0.796308,
-        "posZ": -36.2662239,
-        "rotX": 1.54503432E-05,
-        "rotY": 0.05727776,
-        "rotZ": 6.822729E-05,
+        "posX": 53.7591,
+        "posY": 0.796308041,
+        "posZ": -36.2661362,
+        "rotX": 2.49057166E-07,
+        "rotY": 0.05536636,
+        "rotZ": 6.140195E-08,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
@@ -5059,8 +5049,8 @@
       "Nickname": "Family Board",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.9412004,
-        "g": 0.488843858,
+        "r": 0.9412215,
+        "g": 0.488981217,
         "b": 0.0
       },
       "Locked": false,
@@ -5112,11 +5102,11 @@
       "Name": "Bag",
       "Transform": {
         "posX": 53.12713,
-        "posY": 0.786364138,
+        "posY": 0.7863683,
         "posZ": -8.834163,
-        "rotX": -7.135586E-06,
-        "rotY": 0.160271958,
-        "rotZ": 5.068778E-05,
+        "rotX": -8.040531E-06,
+        "rotY": 0.160272852,
+        "rotZ": 4.98661138E-05,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
@@ -5124,9 +5114,9 @@
       "Nickname": "I-Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.6863866,
+        "r": 0.6864862,
         "g": 0.99999994,
-        "b": 0.655022562
+        "b": 0.655129731
       },
       "Locked": true,
       "Grid": true,
@@ -5143,11 +5133,11 @@
       "Name": "Bag",
       "Transform": {
         "posX": 53.0433,
-        "posY": 0.786352158,
+        "posY": 0.7863579,
         "posZ": -3.35581231,
-        "rotX": 1.72307944E-06,
-        "rotY": 0.173904642,
-        "rotZ": 3.0284642E-05,
+        "rotX": 1.39971473E-06,
+        "rotY": 0.17390506,
+        "rotZ": 3.5139612E-05,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
@@ -5156,8 +5146,8 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
-        "g": 0.164854169,
-        "b": 0.329578936
+        "g": 0.164986074,
+        "b": 0.32972753
       },
       "Locked": true,
       "Grid": true,
@@ -5174,11 +5164,11 @@
       "Name": "Bag",
       "Transform": {
         "posX": 53.0461,
-        "posY": 0.7863386,
+        "posY": 0.786344349,
         "posZ": -6.111948,
-        "rotX": 6.096369E-07,
-        "rotY": 0.10696739,
-        "rotZ": -2.17638831E-06,
+        "rotX": 1.55465511E-06,
+        "rotY": 0.106967747,
+        "rotZ": -6.13890643E-06,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
@@ -5186,8 +5176,8 @@
       "Nickname": "E-Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.126504779,
-        "g": 0.696119845,
+        "r": 0.126627028,
+        "g": 0.696217954,
         "b": 0.0364467427
       },
       "Locked": true,
@@ -5205,20 +5195,20 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 19.5448036,
-        "posY": 1.44347584,
+        "posY": 1.4434756,
         "posZ": -21.5924225,
-        "rotX": 2.65589438E-06,
-        "rotY": 345.0011,
+        "rotX": 2.273943E-06,
+        "rotY": 345.0009,
         "rotZ": 180.00032,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "White Parent",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
-        "g": 0.996080041,
+        "g": 0.996083,
         "b": 0.99999994
       },
       "Locked": false,
@@ -5242,22 +5232,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 15.31863,
-        "posY": 0.9782738,
+        "posX": 15.3186226,
+        "posY": 0.978273749,
         "posZ": -20.9392776,
-        "rotX": -1.3323754E-06,
-        "rotY": 180.015381,
+        "rotX": -5.160284E-06,
+        "rotY": 180.014465,
         "rotZ": 180.000015,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "White Offspring",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.99608
+        "b": 0.996082962
       },
       "Locked": false,
       "Grid": true,
@@ -5280,22 +5270,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 14.2794313,
-        "posY": 1.217802,
+        "posX": 14.2794228,
+        "posY": 1.21780181,
         "posZ": -21.9169712,
-        "rotX": 1.91300678E-05,
-        "rotY": 0.090956524,
-        "rotZ": -1.63454279E-05,
+        "rotX": -1.08634167E-05,
+        "rotY": 0.0930565149,
+        "rotZ": -4.76070927E-05,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "White Stable",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.99608
+        "b": 0.996082962
       },
       "Locked": false,
       "Grid": true,
@@ -5321,17 +5311,17 @@
         "posX": 15.3771324,
         "posY": 0.98678267,
         "posZ": -22.398283,
-        "rotX": -4.04685778E-08,
+        "rotX": -4.04815879E-08,
         "rotY": 329.546753,
-        "rotZ": 9.040524E-08,
+        "rotZ": 9.041439E-08,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "White Offspring",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.9972548,
+        "r": 0.9972578,
         "g": 0.99999994,
         "b": 0.997448742
       },
@@ -5359,19 +5349,19 @@
         "posX": 15.3819275,
         "posY": 0.978273749,
         "posZ": -23.6804733,
-        "rotX": 5.16512E-08,
+        "rotX": 3.08510861E-09,
         "rotY": 194.945435,
         "rotZ": 180.0,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "White Offspring",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.99608
+        "b": 0.996082962
       },
       "Locked": false,
       "Grid": true,
@@ -5394,22 +5384,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 14.2536488,
+        "posX": 14.2536259,
         "posY": 1.21780181,
         "posZ": -23.658699,
-        "rotX": -7.018476E-07,
-        "rotY": 0.0437986143,
-        "rotZ": 9.509585E-07,
+        "rotX": 1.45355091E-06,
+        "rotY": 0.0436491519,
+        "rotZ": 4.663358E-07,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "White Stable",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.99608
+        "b": 0.996082962
       },
       "Locked": false,
       "Grid": true,
@@ -5432,22 +5422,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 14.3049507,
-        "posY": 1.217802,
-        "posZ": -20.96193,
-        "rotX": 1.3263576E-05,
-        "rotY": 0.156543583,
-        "rotZ": -4.75774359E-05,
+        "posX": 14.3049412,
+        "posY": 1.21780169,
+        "posZ": -20.9619312,
+        "rotX": -3.72091733E-07,
+        "rotY": 0.158938333,
+        "rotZ": 7.868104E-07,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "White Stable",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.99608
+        "b": 0.996082962
       },
       "Locked": false,
       "Grid": true,
@@ -5471,20 +5461,20 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 19.5241585,
-        "posY": 1.44347847,
+        "posY": 1.4434824,
         "posZ": -23.9606724,
-        "rotX": -0.000251217076,
+        "rotX": -0.000155870468,
         "rotY": 284.546875,
-        "rotZ": 179.999741,
+        "rotZ": 179.999832,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "White Parent",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
-        "g": 0.996080041,
+        "g": 0.996083,
         "b": 0.99999994
       },
       "Locked": false,
@@ -5508,22 +5498,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 14.3104591,
+        "posX": 14.3104439,
         "posY": 1.217802,
-        "posZ": -22.7392826,
-        "rotX": 3.21918669E-05,
-        "rotY": 180.134613,
-        "rotZ": -7.25937061E-05,
+        "posZ": -22.7392349,
+        "rotX": 1.33687026E-05,
+        "rotY": 180.136627,
+        "rotZ": -4.86207027E-05,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "White Stable",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.99608
+        "b": 0.996082962
       },
       "Locked": false,
       "Grid": true,
@@ -5547,19 +5537,19 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -27.1942158,
-        "posY": 1.10952675,
+        "posY": 1.10952234,
         "posZ": -21.354805,
-        "rotX": -5.06607867E-05,
+        "rotX": -9.045088E-05,
         "rotY": 30.5310459,
-        "rotZ": 6.786211E-05,
+        "rotZ": 0.00010132356,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Red Parent",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.755992234,
+        "r": 0.756155252,
         "g": 0.0,
         "b": 0.02743375
       },
@@ -5584,20 +5574,20 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -14.6110744,
+        "posX": -14.6110516,
         "posY": 0.9867828,
         "posZ": -23.1758137,
-        "rotX": -2.29604673E-08,
+        "rotX": -1.71076131E-08,
         "rotY": 345.0013,
-        "rotZ": 5.13342542E-08,
+        "rotZ": -2.744196E-08,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Red Offspring",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.755985439,
+        "r": 0.756148458,
         "g": 0.0,
         "b": 0.02743375
       },
@@ -5622,20 +5612,20 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -14.6468306,
-        "posY": 0.9805781,
-        "posZ": -21.8163414,
-        "rotX": 0.0250287578,
-        "rotY": 152.465256,
-        "rotZ": 180.2914,
+        "posX": -14.64712,
+        "posY": 0.980902135,
+        "posZ": -21.81686,
+        "rotX": 0.008194359,
+        "rotY": 152.414474,
+        "rotZ": 180.300919,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Red Offspring",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.755978644,
+        "r": 0.756141663,
         "g": 0.0,
         "b": 0.02743375
       },
@@ -5660,20 +5650,20 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -14.6294651,
-        "posY": 1.00450063,
-        "posZ": -20.58318,
-        "rotX": 358.2871,
-        "rotY": 118.500984,
-        "rotZ": 181.288818,
+        "posX": -14.6267118,
+        "posY": 1.0044868,
+        "posZ": -20.5826378,
+        "rotX": 358.3063,
+        "rotY": 118.277885,
+        "rotZ": 181.30629,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Red Offsrping",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.755985439,
+        "r": 0.756148458,
         "g": 0.0,
         "b": 0.02743375
       },
@@ -5699,19 +5689,19 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -27.2024918,
-        "posY": 1.10952771,
+        "posY": 1.109524,
         "posZ": -23.9145164,
-        "rotX": 1.05763993E-05,
-        "rotY": 15.1585188,
-        "rotZ": -2.83111513E-06,
+        "rotX": -1.7265329E-06,
+        "rotY": 15.1585245,
+        "rotZ": -1.1314225E-05,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Red Parent",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.755985439,
+        "r": 0.756148458,
         "g": 0.0,
         "b": 0.02743375
       },
@@ -5736,20 +5726,20 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -13.6179276,
-        "posY": 1.111404,
-        "posZ": -21.081974,
-        "rotX": 5.27247437E-07,
-        "rotY": 147.577774,
-        "rotZ": 179.999985,
+        "posX": -13.6179447,
+        "posY": 1.11140347,
+        "posZ": -21.0819283,
+        "rotX": 3.08931635E-06,
+        "rotY": 147.578964,
+        "rotZ": 179.999924,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Red Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.6698978,
+        "r": 0.670106053,
         "g": 0.0,
         "b": 0.0
       },
@@ -5775,19 +5765,19 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -13.7204237,
-        "posY": 1.11140406,
+        "posY": 1.11140382,
         "posZ": -23.1313648,
-        "rotX": 9.04755666E-07,
+        "rotX": -6.027462E-07,
         "rotY": 147.961456,
         "rotZ": 180.0,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Red Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.6698978,
+        "r": 0.670106053,
         "g": 0.0,
         "b": 0.0
       },
@@ -5812,20 +5802,20 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -13.6588259,
+        "posX": -13.6588316,
         "posY": 1.1114037,
-        "posZ": -19.87647,
-        "rotX": 2.74359754E-05,
-        "rotY": 147.052765,
-        "rotZ": 179.999985,
+        "posZ": -19.8764515,
+        "rotX": -2.70688215E-05,
+        "rotY": 147.048737,
+        "rotZ": 180.0,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Red Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.669889152,
+        "r": 0.6700974,
         "g": 0.0,
         "b": 0.0
       },
@@ -5850,20 +5840,20 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -13.6287136,
+        "posX": -13.6287355,
         "posY": 1.11140382,
-        "posZ": -22.085577,
-        "rotX": 8.260918E-05,
-        "rotY": 147.813065,
-        "rotZ": 179.999847,
+        "posZ": -22.0855427,
+        "rotX": -8.82869E-05,
+        "rotY": 147.809311,
+        "rotZ": 180.000076,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Red Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.6698978,
+        "r": 0.670106053,
         "g": 0.0,
         "b": 0.0
       },
@@ -5888,22 +5878,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 39.4359741,
-        "posY": 1.40325475,
-        "posZ": 6.53679657,
-        "rotX": 0.00569283543,
-        "rotY": 179.729218,
-        "rotZ": 1.23822761,
+        "posX": 39.4387779,
+        "posY": 1.40319479,
+        "posZ": 6.53783035,
+        "rotX": 0.00478277076,
+        "rotY": 179.783661,
+        "rotZ": 1.23995388,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Purple Parent",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.5238837,
+        "r": 0.524149358,
         "g": 0.0,
-        "b": 0.523847938
+        "b": 0.524113536
       },
       "Locked": false,
       "Grid": true,
@@ -5926,22 +5916,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 39.2468376,
+        "posX": 39.2467461,
         "posY": 1.21780181,
-        "posZ": 20.34645,
-        "rotX": 4.38362065E-07,
+        "posZ": 20.346405,
+        "rotX": 8.117033E-07,
         "rotY": 90.59427,
-        "rotZ": 1.253404E-06,
+        "rotZ": 1.54111785E-06,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Purple Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.5256064,
+        "r": 0.525872,
         "g": 0.0,
-        "b": 0.485699922
+        "b": 0.485977024
       },
       "Locked": false,
       "Grid": true,
@@ -5964,22 +5954,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 40.1655235,
+        "posX": 40.16543,
         "posY": 1.21780181,
-        "posZ": 20.4048271,
-        "rotX": 0.000219247158,
-        "rotY": 269.935364,
-        "rotZ": 0.00015763742,
+        "posZ": 20.404789,
+        "rotX": 0.000185212,
+        "rotY": 269.930847,
+        "rotZ": 4.71032181E-05,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Purple Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.541364,
+        "r": 0.5416236,
         "g": 0.0,
-        "b": 0.4801881
+        "b": 0.4804658
       },
       "Locked": false,
       "Grid": true,
@@ -6002,22 +5992,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 39.5937157,
+        "posX": 39.5936241,
         "posY": 0.9867827,
-        "posZ": 19.4066849,
-        "rotX": 9.00925059E-08,
+        "posZ": 19.40664,
+        "rotX": 9.81816939E-08,
         "rotY": 359.942932,
-        "rotZ": -9.32959736E-08,
+        "rotZ": -1.46181511E-08,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Purple Offspring",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.5232524,
+        "r": 0.5235181,
         "g": 0.0,
-        "b": 0.5155369
+        "b": 0.515805542
       },
       "Locked": false,
       "Grid": true,
@@ -6041,21 +6031,21 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 41.0041275,
-        "posY": 0.98678267,
-        "posZ": 19.369463,
-        "rotX": 9.01676742E-08,
-        "rotY": 359.89566,
-        "rotZ": -5.67925653E-08,
+        "posY": 0.9867828,
+        "posZ": 19.3694172,
+        "rotX": -3.96466824E-08,
+        "rotY": 359.897034,
+        "rotZ": 2.35021389E-08,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Purple Offspring",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.5256064,
+        "r": 0.525872,
         "g": 0.0,
-        "b": 0.5090735
+        "b": 0.5093432
       },
       "Locked": false,
       "Grid": true,
@@ -6078,22 +6068,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 38.175808,
-        "posY": 1.21780169,
-        "posZ": 20.3278313,
-        "rotX": -3.2503307E-05,
-        "rotY": 75.13643,
-        "rotZ": 1.967276E-05,
+        "posX": 38.1757545,
+        "posY": 1.217802,
+        "posZ": 20.3278179,
+        "rotX": -5.06787474E-05,
+        "rotY": 75.14123,
+        "rotZ": 0.00024780113,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Purple Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.5256064,
+        "r": 0.525872,
         "g": 0.0,
-        "b": 0.4979183
+        "b": 0.498191535
       },
       "Locked": false,
       "Grid": true,
@@ -6118,20 +6108,20 @@
       "Transform": {
         "posX": 38.2273979,
         "posY": 0.9867828,
-        "posZ": 19.39343,
-        "rotX": 1.49256421E-05,
-        "rotY": 359.8236,
-        "rotZ": -3.94081553E-06,
+        "posZ": 19.3933849,
+        "rotX": 1.4981757E-05,
+        "rotY": 359.822,
+        "rotZ": -3.935641E-06,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Purple Offspring",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.523510337,
+        "r": 0.523775935,
         "g": 0.0,
-        "b": 0.5223285
+        "b": 0.522594154
       },
       "Locked": false,
       "Grid": true,
@@ -6156,20 +6146,20 @@
       "Transform": {
         "posX": 40.98151,
         "posY": 1.21780181,
-        "posZ": 20.3466034,
-        "rotX": -2.992357E-07,
-        "rotY": 90.3313446,
-        "rotZ": 1.24210976E-06,
+        "posZ": 20.3465576,
+        "rotX": 1.03200546E-06,
+        "rotY": 90.33126,
+        "rotZ": 6.304008E-07,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Purple Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.5408762,
+        "r": 0.5411358,
         "g": 0.0,
-        "b": 0.461313426
+        "b": 0.461595625
       },
       "Locked": false,
       "Grid": true,
@@ -6192,22 +6182,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 41.9577255,
-        "posY": 1.34879792,
-        "posZ": 6.4762,
-        "rotX": 0.000848206,
-        "rotY": 0.05663793,
-        "rotZ": 358.7614,
+        "posX": 41.960743,
+        "posY": 1.34873438,
+        "posZ": 6.476752,
+        "rotX": 0.00143326819,
+        "rotY": 0.08533673,
+        "rotZ": 358.759827,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Purple Parent",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.524474144,
+        "r": 0.524739742,
         "g": 0.0,
-        "b": 0.5245345
+        "b": 0.5248001
       },
       "Locked": false,
       "Grid": true,
@@ -6231,20 +6221,20 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -18.9290771,
-        "posY": 1.45197845,
+        "posY": 1.45198166,
         "posZ": 21.8881512,
-        "rotX": -2.0699139E-05,
-        "rotY": 284.984283,
-        "rotZ": -0.0006343242,
+        "rotX": -1.05381041E-05,
+        "rotY": 284.984222,
+        "rotZ": -0.0004004458,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Green Parent",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.490522265,
+        "g": 0.490796953,
         "b": 0.0
       },
       "Locked": false,
@@ -6268,21 +6258,21 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -15.0091209,
-        "posY": 0.9867828,
-        "posZ": 22.8942528,
-        "rotX": -2.25349731E-06,
-        "rotY": 14.9685955,
-        "rotZ": 5.411619E-06,
+        "posX": -15.00912,
+        "posY": 0.98678267,
+        "posZ": 22.894207,
+        "rotX": 5.21387756E-06,
+        "rotY": 14.9685631,
+        "rotZ": -8.986508E-06,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Green Offspring",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.490522265,
+        "g": 0.490796953,
         "b": 0.0
       },
       "Locked": false,
@@ -6307,20 +6297,20 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -15.1827106,
-        "posY": 0.9867828,
-        "posZ": 20.3129482,
-        "rotX": 2.72816081E-08,
-        "rotY": 359.897247,
-        "rotZ": 5.74835965E-08,
+        "posY": 0.986782849,
+        "posZ": 20.3129025,
+        "rotX": 2.78669066E-09,
+        "rotY": 359.898621,
+        "rotZ": -1.807949E-08,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Green Offspring",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.490522265,
+        "g": 0.490796953,
         "b": 0.0
       },
       "Locked": false,
@@ -6344,21 +6334,21 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -15.0857658,
+        "posX": -15.0857468,
         "posY": 0.9867827,
-        "posZ": 21.6348133,
-        "rotX": -3.66038535E-07,
-        "rotY": 14.9219933,
-        "rotZ": -3.65989058E-06,
+        "posZ": 21.6347675,
+        "rotX": 5.30606439E-06,
+        "rotY": 14.9235106,
+        "rotZ": -9.01546E-06,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Green Offspring",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.490510821,
+        "g": 0.4907855,
         "b": 0.0
       },
       "Locked": false,
@@ -6382,21 +6372,21 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -18.8884182,
+        "posX": -18.8872261,
         "posY": 1.45197773,
-        "posZ": 24.1947918,
-        "rotX": 5.20749272E-05,
-        "rotY": 0.65664953,
-        "rotZ": -0.000124051541,
+        "posZ": 24.1928673,
+        "rotX": 5.4644388E-05,
+        "rotY": 359.564636,
+        "rotZ": -0.0001316827,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Green Parent",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.490522265,
+        "g": 0.490796953,
         "b": 0.0
       },
       "Locked": false,
@@ -6420,21 +6410,21 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -13.9444723,
-        "posY": 1.21780157,
-        "posZ": 23.0891228,
-        "rotX": 1.05891213E-05,
-        "rotY": 359.940216,
-        "rotZ": 6.79951336E-06,
+        "posX": -13.9444647,
+        "posY": 1.21780181,
+        "posZ": 23.0890789,
+        "rotX": 1.07059464E-06,
+        "rotY": 359.9382,
+        "rotZ": 5.67531231E-07,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Green Stable",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.490522265,
+        "g": 0.490796953,
         "b": 0.0
       },
       "Locked": false,
@@ -6458,21 +6448,21 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -14.0136728,
-        "posY": 1.217802,
-        "posZ": 21.0310688,
-        "rotX": 8.734474E-07,
-        "rotY": 0.07329794,
-        "rotZ": -2.71559344E-07,
+        "posX": -14.01365,
+        "posY": 1.21780181,
+        "posZ": 21.031023,
+        "rotX": 1.35387609E-06,
+        "rotY": 0.0749154761,
+        "rotZ": -6.884486E-07,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Green Stable",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.490522265,
+        "g": 0.490796953,
         "b": 0.0
       },
       "Locked": false,
@@ -6496,21 +6486,21 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -14.0040474,
+        "posX": -14.0040312,
         "posY": 1.21780181,
-        "posZ": 22.0620232,
-        "rotX": 1.17587615E-05,
-        "rotY": 0.136584222,
-        "rotZ": 1.45906743E-05,
+        "posZ": 22.0619774,
+        "rotX": -1.51678832E-05,
+        "rotY": 0.138814718,
+        "rotZ": -3.0709165E-05,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Green Stable",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.490522265,
+        "g": 0.490796953,
         "b": 0.0
       },
       "Locked": false,
@@ -6536,19 +6526,19 @@
       "Transform": {
         "posX": -14.0727215,
         "posY": 1.21780181,
-        "posZ": 20.0263042,
-        "rotX": 5.60378339E-07,
-        "rotY": 0.07181832,
-        "rotZ": -1.1179884E-06,
+        "posZ": 20.0262585,
+        "rotX": 1.24845E-06,
+        "rotY": 0.07111984,
+        "rotZ": 1.05804259E-06,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Green Stable",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.490510821,
+        "g": 0.4907855,
         "b": 0.0
       },
       "Locked": false,
@@ -6575,19 +6565,19 @@
         "posX": 28.4934578,
         "posY": 1.45199323,
         "posZ": 23.9712219,
-        "rotX": -0.0001081291,
-        "rotY": 345.9776,
-        "rotZ": -0.000205627861,
+        "rotX": -0.000110908659,
+        "rotY": 345.977875,
+        "rotZ": -0.000204334065,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Blue Parent",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.729623258
+        "b": 0.7298013
       },
       "Locked": false,
       "Grid": true,
@@ -6610,22 +6600,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 15.646944,
-        "posY": 0.98678267,
-        "posZ": 23.32161,
-        "rotX": -5.231804E-08,
-        "rotY": 359.975464,
-        "rotZ": 8.74500756E-08,
+        "posX": 15.6469212,
+        "posY": 0.9867827,
+        "posZ": 23.3215637,
+        "rotX": -1.37547261E-06,
+        "rotY": 359.974457,
+        "rotZ": 5.145495E-06,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Blue Offspring",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.729623258
+        "b": 0.7298013
       },
       "Locked": false,
       "Grid": true,
@@ -6648,22 +6638,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 15.5888758,
+        "posX": 15.5888805,
         "posY": 0.9867828,
-        "posZ": 22.129797,
-        "rotX": 6.640989E-08,
-        "rotY": 0.0611809678,
-        "rotZ": -5.469644E-08,
+        "posZ": 22.1297512,
+        "rotX": 4.06945979E-08,
+        "rotY": 0.06256434,
+        "rotZ": -3.93744166E-08,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Blue Offspring",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.729623258
+        "b": 0.7298013
       },
       "Locked": false,
       "Grid": true,
@@ -6686,22 +6676,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 15.5740757,
-        "posY": 0.9867828,
-        "posZ": 20.896944,
-        "rotX": -6.374735E-06,
-        "rotY": 359.940948,
-        "rotZ": -9.003038E-07,
+        "posX": 15.5740547,
+        "posY": 0.986782849,
+        "posZ": 20.8968525,
+        "rotX": -2.6153175E-06,
+        "rotY": 359.942322,
+        "rotZ": 9.55588348E-06,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Blue Offspring",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.7296158
+        "b": 0.7297939
       },
       "Locked": false,
       "Grid": true,
@@ -6725,21 +6715,21 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 28.4272766,
-        "posY": 1.451994,
+        "posY": 1.45198965,
         "posZ": 21.5052242,
-        "rotX": -9.896539E-05,
-        "rotY": 0.0281550568,
-        "rotZ": -2.93640369E-05,
+        "rotX": -0.000119739278,
+        "rotY": 0.02818399,
+        "rotZ": -4.578049E-05,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Blue Parent",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.729623258
+        "b": 0.7298013
       },
       "Locked": false,
       "Grid": true,
@@ -6764,20 +6754,20 @@
       "Transform": {
         "posX": 14.6108732,
         "posY": 1.21780181,
-        "posZ": 23.3675022,
-        "rotX": 3.66768319E-07,
-        "rotY": 0.161668554,
-        "rotZ": -3.798709E-07,
+        "posZ": 23.3674564,
+        "rotX": 1.12427955E-07,
+        "rotY": 0.161908522,
+        "rotZ": 8.14616442E-07,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Blue Stable",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.7296158
+        "b": 0.7297939
       },
       "Locked": false,
       "Grid": true,
@@ -6800,22 +6790,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 14.5594521,
-        "posY": 1.21780193,
-        "posZ": 22.4069767,
-        "rotX": 1.73326E-05,
-        "rotY": 180.0925,
-        "rotZ": 5.73149555E-05,
+        "posX": 14.5594435,
+        "posY": 1.217802,
+        "posZ": 22.4069328,
+        "rotX": 8.890138E-06,
+        "rotY": 180.09491,
+        "rotZ": -1.95341545E-06,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Blue Stable",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.729623258
+        "b": 0.7298013
       },
       "Locked": false,
       "Grid": true,
@@ -6838,22 +6828,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 14.5394573,
+        "posX": 14.5394487,
         "posY": 1.21780193,
-        "posZ": 20.50099,
-        "rotX": -1.10654973E-05,
-        "rotY": 179.9402,
-        "rotZ": 0.00013436882,
+        "posZ": 20.5009422,
+        "rotX": 4.49290656E-06,
+        "rotY": 179.937927,
+        "rotZ": 1.07143615E-05,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Blue Stable",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.729623258
+        "b": 0.7298013
       },
       "Locked": false,
       "Grid": true,
@@ -6876,22 +6866,22 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 14.5469713,
-        "posY": 1.21780193,
-        "posZ": 21.44497,
-        "rotX": -3.14431077E-07,
-        "rotY": 180.07785,
-        "rotZ": 9.30253748E-07,
+        "posX": 14.5469637,
+        "posY": 1.21780181,
+        "posZ": 21.4449253,
+        "rotX": 1.46887251E-05,
+        "rotY": 180.080475,
+        "rotZ": 4.78819675E-05,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
       },
-      "Nickname": "",
+      "Nickname": "Blue Stable",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.729623258
+        "b": 0.7298013
       },
       "Locked": false,
       "Grid": true,
@@ -6927,9 +6917,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7868402,
-        "g": 0.7868402,
-        "b": 0.7868402
+        "r": 0.7869126,
+        "g": 0.7869126,
+        "b": 0.7869126
       },
       "Locked": true,
       "Grid": true,
@@ -6949,10 +6939,10 @@
       "Transform": {
         "posX": 29.1070786,
         "posY": 1.56204176,
-        "posZ": 0.361488134,
-        "rotX": 3.134068E-06,
-        "rotY": 0.03876571,
-        "rotZ": -2.69122611E-05,
+        "posZ": 0.36149925,
+        "rotX": 5.114057E-06,
+        "rotY": 0.04039438,
+        "rotZ": -2.7888882E-05,
         "scaleX": 3.0,
         "scaleY": 3.0,
         "scaleZ": 3.0
@@ -6961,8 +6951,8 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
-        "g": 0.988244534,
-        "b": 0.192437142
+        "g": 0.9882536,
+        "b": 0.192711815
       },
       "Locked": false,
       "Grid": true,
@@ -6988,9 +6978,9 @@
         "posX": 12.2864513,
         "posY": 0.9189708,
         "posZ": 5.08159447,
-        "rotX": 1.836264E-05,
-        "rotY": 180.013489,
-        "rotZ": 3.84768E-05,
+        "rotX": 1.83626489E-05,
+        "rotY": 180.013855,
+        "rotZ": 3.847682E-05,
         "scaleX": 0.375,
         "scaleY": 0.375,
         "scaleZ": 0.375
@@ -6998,9 +6988,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7868402,
-        "g": 0.7868402,
-        "b": 0.7868402
+        "r": 0.7869126,
+        "g": 0.7869126,
+        "b": 0.7869126
       },
       "Locked": true,
       "Grid": true,
@@ -7035,7 +7025,7 @@
         "posY": 0.97031045,
         "posZ": -20.5953655,
         "rotX": -3.872994E-05,
-        "rotY": 180.001724,
+        "rotY": 180.00209,
         "rotZ": -1.66017443E-07,
         "scaleX": 0.375,
         "scaleY": 0.375,
@@ -7044,9 +7034,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7868402,
-        "g": 0.7868402,
-        "b": 0.7868402
+        "r": 0.7869126,
+        "g": 0.7869126,
+        "b": 0.7869126
       },
       "Locked": true,
       "Grid": true,
@@ -7068,7 +7058,7 @@
         "posY": 0.6278476,
         "posZ": -20.5920486,
         "rotX": -3.83877668E-05,
-        "rotY": 180.0033,
+        "rotY": 180.003647,
         "rotZ": -5.265887E-07,
         "scaleX": 0.375,
         "scaleY": 0.375,
@@ -7077,9 +7067,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7868462,
-        "g": 0.7868462,
-        "b": 0.7868462
+        "r": 0.7869187,
+        "g": 0.7869187,
+        "b": 0.7869187
       },
       "Locked": true,
       "Grid": true,
@@ -7098,11 +7088,11 @@
       "Name": "Custom_Board",
       "Transform": {
         "posX": 38.58852,
-        "posY": 0.939784348,
+        "posY": 0.9397843,
         "posZ": 11.1200151,
-        "rotX": 1.23691392,
-        "rotY": 90.6174,
-        "rotZ": 0.0130175855,
+        "rotX": 1.23691463,
+        "rotY": 90.61747,
+        "rotZ": 0.0130180661,
         "scaleX": 0.375,
         "scaleY": 0.375,
         "scaleZ": 0.375
@@ -7110,9 +7100,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.78684324,
-        "g": 0.78684324,
-        "b": 0.78684324
+        "r": 0.78691566,
+        "g": 0.78691566,
+        "b": 0.78691566
       },
       "Locked": true,
       "Grid": true,
@@ -7143,9 +7133,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.78684324,
-        "g": 0.78684324,
-        "b": 0.78684324
+        "r": 0.78691566,
+        "g": 0.78691566,
+        "b": 0.78691566
       },
       "Locked": true,
       "Grid": true,
@@ -7176,9 +7166,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.78684324,
-        "g": 0.78684324,
-        "b": 0.78684324
+        "r": 0.78691566,
+        "g": 0.78691566,
+        "b": 0.78691566
       },
       "Locked": true,
       "Grid": true,
@@ -7206,12 +7196,12 @@
         "scaleY": 0.625,
         "scaleZ": 0.625
       },
-      "Nickname": "",
+      "Nickname": "Scoring Reference",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7868402,
-        "g": 0.7868402,
-        "b": 0.7868402
+        "r": 0.7869126,
+        "g": 0.7869126,
+        "b": 0.7869126
       },
       "Locked": true,
       "Grid": true,
@@ -7233,7 +7223,7 @@
         "posY": 0.778439462,
         "posZ": -5.68584442,
         "rotX": -1.56817587E-05,
-        "rotY": 180.001984,
+        "rotY": 180.002213,
         "rotZ": 2.77066931E-07,
         "scaleX": 0.375,
         "scaleY": 0.375,
@@ -7242,9 +7232,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.786831141,
-        "g": 0.786831141,
-        "b": 0.786831141
+        "r": 0.78690356,
+        "g": 0.78690356,
+        "b": 0.78690356
       },
       "Locked": true,
       "Grid": true,
@@ -7275,9 +7265,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.786831141,
-        "g": 0.786831141,
-        "b": 0.786831141
+        "r": 0.78690356,
+        "g": 0.78690356,
+        "b": 0.78690356
       },
       "Locked": true,
       "Grid": true,
@@ -7297,19 +7287,19 @@
       "Transform": {
         "posX": 29.1229954,
         "posY": 0.978273749,
-        "posZ": -0.784526348,
-        "rotX": -3.854993E-08,
+        "posZ": -0.7845249,
+        "rotX": 1.63663483E-08,
         "rotY": 179.733841,
         "rotZ": 180.0,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Guest Token",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.992165864,
+        "g": 0.9921719,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7335,19 +7325,19 @@
       "Transform": {
         "posX": 27.94071,
         "posY": 0.978273749,
-        "posZ": -0.784369051,
-        "rotX": -3.08486869E-06,
+        "posZ": -0.7843662,
+        "rotX": -3.27508769E-06,
         "rotY": 179.778442,
         "rotZ": 180.0,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Guest Token",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921661,
+        "g": 0.9921722,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7371,21 +7361,21 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 27.87288,
-        "posY": 0.986782849,
-        "posZ": 0.3841979,
-        "rotX": 3.070588E-06,
-        "rotY": 0.2358067,
-        "rotZ": 9.661435E-06,
+        "posX": 27.8728352,
+        "posY": 0.9867828,
+        "posZ": 0.3841992,
+        "rotX": 3.16249134E-06,
+        "rotY": 0.235900223,
+        "rotZ": 9.540633E-06,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "",
+      "Nickname": "Arrow Marker",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921661,
+        "g": 0.9921722,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7410,11 +7400,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 19.60273,
-        "posY": 1.37393045,
+        "posY": 1.37393057,
         "posZ": -21.5380135,
-        "rotX": 0.000295094418,
-        "rotY": -0.00420523,
-        "rotZ": 5.620346E-05,
+        "rotX": 0.0002947055,
+        "rotY": -0.00398540543,
+        "rotZ": 5.59918735E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7423,7 +7413,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921664,
+        "g": 0.9921724,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7448,11 +7438,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 19.52684,
-        "posY": 1.3739326,
+        "posY": 1.37392962,
         "posZ": -24.01207,
-        "rotX": 0.000206459867,
-        "rotY": 0.0632992,
-        "rotZ": 4.0582745E-05,
+        "rotX": 0.0002759055,
+        "rotY": 0.06293969,
+        "rotZ": 9.167399E-07,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7461,7 +7451,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921664,
+        "g": 0.9921724,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7486,11 +7476,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -27.2081013,
-        "posY": 1.03146482,
+        "posY": 1.03146791,
         "posZ": -21.3883152,
-        "rotX": 0.000260492321,
-        "rotY": 2.88510837E-05,
-        "rotZ": 4.98632762E-05,
+        "rotX": 0.000241103044,
+        "rotY": -0.000289297284,
+        "rotZ": 4.63102E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7499,7 +7489,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921661,
+        "g": 0.9921722,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7524,11 +7514,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -27.2028446,
-        "posY": 1.03146636,
+        "posY": 1.03146982,
         "posZ": -23.9897652,
-        "rotX": 0.000303848559,
-        "rotY": 0.02035093,
-        "rotZ": 4.26949919E-05,
+        "rotX": 0.000235381056,
+        "rotY": 0.0198245272,
+        "rotZ": 4.30469445E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7537,7 +7527,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921661,
+        "g": 0.9921722,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7561,12 +7551,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 39.4315,
-        "posY": 1.32527518,
-        "posZ": 6.58390951,
-        "rotX": 0.00127490668,
-        "rotY": 0.07004496,
-        "rotZ": 358.760773,
+        "posX": 39.43268,
+        "posY": 1.3252449,
+        "posZ": 6.584863,
+        "rotX": 0.00284522143,
+        "rotY": 0.1378557,
+        "rotZ": 358.760437,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7575,7 +7565,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921661,
+        "g": 0.9921722,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7599,12 +7589,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 41.94721,
-        "posY": 1.27095211,
-        "posZ": 6.48195553,
-        "rotX": 0.001441815,
-        "rotY": 0.07306685,
-        "rotZ": 358.7608,
+        "posX": 41.9481926,
+        "posY": 1.27092624,
+        "posZ": 6.482882,
+        "rotX": 0.003005683,
+        "rotY": 0.143638477,
+        "rotZ": 358.760376,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7613,7 +7603,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921664,
+        "g": 0.9921724,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7638,11 +7628,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -18.9760017,
-        "posY": 1.37392282,
+        "posY": 1.37392008,
         "posZ": 21.6723633,
-        "rotX": 0.000114303795,
-        "rotY": 0.03122664,
-        "rotZ": 2.08826314E-05,
+        "rotX": 0.0003628091,
+        "rotY": 0.0306794923,
+        "rotZ": -4.302033E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7651,7 +7641,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921664,
+        "g": 0.9921724,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7676,11 +7666,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -18.89406,
-        "posY": 1.37391615,
+        "posY": 1.37391639,
         "posZ": 24.08202,
-        "rotX": 0.000335989025,
-        "rotY": 0.0123275528,
-        "rotZ": 8.88689647E-06,
+        "rotX": 0.000336697063,
+        "rotY": 0.0114148716,
+        "rotZ": 6.454632E-06,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7689,7 +7679,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921664,
+        "g": 0.9921724,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7714,11 +7704,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 28.4611683,
-        "posY": 1.373932,
+        "posY": 1.37393534,
         "posZ": 21.5102844,
-        "rotX": 0.0001538284,
-        "rotY": 0.0171106681,
-        "rotZ": 7.649287E-05,
+        "rotX": 0.0001670636,
+        "rotY": 0.0167936776,
+        "rotZ": 4.94757442E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7727,7 +7717,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921661,
+        "g": 0.9921722,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7752,11 +7742,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 28.483902,
-        "posY": 1.373938,
+        "posY": 1.3739382,
         "posZ": 23.9787464,
-        "rotX": 0.0001474815,
-        "rotY": -0.00556017458,
-        "rotZ": 4.49263425E-05,
+        "rotX": 0.000144623875,
+        "rotY": 359.994263,
+        "rotZ": 4.54446963E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7765,7 +7755,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921664,
+        "g": 0.9921724,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7789,22 +7779,22 @@
     {
       "Name": "DeckCustom",
       "Transform": {
-        "posX": 28.4608936,
+        "posX": 28.460928,
         "posY": 1.03691447,
-        "posZ": -3.6973958,
-        "rotX": 1.19096694E-06,
-        "rotY": 179.955414,
+        "posZ": -3.697371,
+        "rotX": 1.16361434E-06,
+        "rotY": 179.955551,
         "rotZ": 180.000015,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Begging Cards Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.713309348,
-        "g": 0.713309348,
-        "b": 0.713309348
+        "r": 0.7134029,
+        "g": 0.7134029,
+        "b": 0.7134029
       },
       "Locked": false,
       "Grid": true,
@@ -7991,12 +7981,12 @@
     {
       "Name": "Card",
       "Transform": {
-        "posX": 6.68195963,
+        "posX": 6.681952,
         "posY": 1.34303486,
-        "posZ": 7.179483,
-        "rotX": 2.45453466E-05,
-        "rotY": 180.000885,
-        "rotZ": 3.83887163E-05,
+        "posZ": 7.17948246,
+        "rotX": 2.07914582E-05,
+        "rotY": 180.000977,
+        "rotZ": 3.818906E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8004,9 +7994,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133132,
-        "g": 0.7133132,
-        "b": 0.7133132
+        "r": 0.7134068,
+        "g": 0.7134068,
+        "b": 0.7134068
       },
       "Locked": false,
       "Grid": true,
@@ -8031,11 +8021,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 17.8977242,
-        "posY": 1.34302723,
+        "posY": 1.34302735,
         "posZ": 7.30535173,
-        "rotX": 2.15304863E-05,
-        "rotY": 180.000183,
-        "rotZ": 3.87984765E-05,
+        "rotX": 2.00817321E-05,
+        "rotY": 180.000549,
+        "rotZ": 3.86638967E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8043,9 +8033,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133132,
-        "g": 0.7133132,
-        "b": 0.7133132
+        "r": 0.7134068,
+        "g": 0.7134068,
+        "b": 0.7134068
       },
       "Locked": false,
       "Grid": true,
@@ -8069,12 +8059,12 @@
     {
       "Name": "Card",
       "Transform": {
-        "posX": 6.712076,
-        "posY": 1.34303319,
-        "posZ": 2.611909,
-        "rotX": 1.91425333E-05,
-        "rotY": 179.993881,
-        "rotZ": 3.760595E-05,
+        "posX": 6.71206951,
+        "posY": 1.34303343,
+        "posZ": 2.611906,
+        "rotX": 1.89798411E-05,
+        "rotY": 179.993958,
+        "rotZ": 3.811605E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8082,9 +8072,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133132,
-        "g": 0.7133132,
-        "b": 0.7133132
+        "r": 0.7134068,
+        "g": 0.7134068,
+        "b": 0.7134068
       },
       "Locked": false,
       "Grid": true,
@@ -8109,11 +8099,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 12.411891,
-        "posY": 1.34302938,
-        "posZ": 2.62122226,
-        "rotX": 2.3960285E-05,
-        "rotY": 180.000259,
-        "rotZ": 3.89552333E-05,
+        "posY": 1.3430295,
+        "posZ": 2.6212194,
+        "rotX": 2.64977334E-05,
+        "rotY": 180.000656,
+        "rotZ": 3.845536E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8121,9 +8111,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133132,
-        "g": 0.7133132,
-        "b": 0.7133132
+        "r": 0.7134068,
+        "g": 0.7134068,
+        "b": 0.7134068
       },
       "Locked": false,
       "Grid": true,
@@ -8149,10 +8139,10 @@
       "Transform": {
         "posX": 17.8814621,
         "posY": 1.3430258,
-        "posZ": 2.61081743,
-        "rotX": 2.12480245E-05,
-        "rotY": 179.996658,
-        "rotZ": 3.860066E-05,
+        "posZ": 2.61081433,
+        "rotX": 2.40298923E-05,
+        "rotY": 179.996887,
+        "rotZ": 3.86440734E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8160,9 +8150,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133132,
-        "g": 0.7133132,
-        "b": 0.7133132
+        "r": 0.7134068,
+        "g": 0.7134068,
+        "b": 0.7134068
       },
       "Locked": false,
       "Grid": true,
@@ -8188,10 +8178,10 @@
       "Transform": {
         "posX": 9.592285,
         "posY": 1.34303129,
-        "posZ": 2.624825,
-        "rotX": 2.653461E-05,
-        "rotY": 180.000229,
-        "rotZ": 3.85835265E-05,
+        "posZ": 2.62482357,
+        "rotX": 2.57021529E-05,
+        "rotY": 180.00058,
+        "rotZ": 3.83159568E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8199,9 +8189,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133132,
-        "g": 0.7133132,
-        "b": 0.7133132
+        "r": 0.7134068,
+        "g": 0.7134068,
+        "b": 0.7134068
       },
       "Locked": false,
       "Grid": true,
@@ -8226,11 +8216,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 15.1133995,
-        "posY": 1.34302914,
+        "posY": 1.34302926,
         "posZ": 7.29298449,
-        "rotX": 2.04001826E-05,
-        "rotY": 180.001,
-        "rotZ": 3.86768043E-05,
+        "rotX": 2.40614881E-05,
+        "rotY": 180.001373,
+        "rotZ": 3.87587061E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8238,9 +8228,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133132,
-        "g": 0.7133132,
-        "b": 0.7133132
+        "r": 0.7134068,
+        "g": 0.7134068,
+        "b": 0.7134068
       },
       "Locked": false,
       "Grid": true,
@@ -8265,11 +8255,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 9.502715,
-        "posY": 1.343033,
+        "posY": 1.34303284,
         "posZ": 7.29807472,
-        "rotX": 2.35017214E-05,
+        "rotX": 1.94527838E-05,
         "rotY": 179.996,
-        "rotZ": 3.89215966E-05,
+        "rotZ": 3.85353123E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8277,9 +8267,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133132,
-        "g": 0.7133132,
-        "b": 0.7133132
+        "r": 0.7134068,
+        "g": 0.7134068,
+        "b": 0.7134068
       },
       "Locked": false,
       "Grid": true,
@@ -8304,11 +8294,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 12.3197689,
-        "posY": 1.34303129,
+        "posY": 1.34303117,
         "posZ": 7.312429,
-        "rotX": 2.147351E-05,
+        "rotX": 2.5882402E-05,
         "rotY": 179.996536,
-        "rotZ": 3.842136E-05,
+        "rotZ": 3.84186133E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8316,9 +8306,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133132,
-        "g": 0.7133132,
-        "b": 0.7133132
+        "r": 0.7134068,
+        "g": 0.7134068,
+        "b": 0.7134068
       },
       "Locked": false,
       "Grid": true,
@@ -8344,10 +8334,10 @@
       "Transform": {
         "posX": 15.1417818,
         "posY": 1.34302759,
-        "posZ": 2.596912,
-        "rotX": 2.04445041E-05,
-        "rotY": 179.996155,
-        "rotZ": 3.8531085E-05,
+        "posZ": 2.59690928,
+        "rotX": 2.28118315E-05,
+        "rotY": 179.9963,
+        "rotZ": 3.86055726E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8355,9 +8345,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133132,
-        "g": 0.7133132,
-        "b": 0.7133132
+        "r": 0.7134068,
+        "g": 0.7134068,
+        "b": 0.7134068
       },
       "Locked": false,
       "Grid": true,
@@ -8391,12 +8381,12 @@
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Game Stages Card",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133054,
-        "g": 0.7133054,
-        "b": 0.7133054
+        "r": 0.713399,
+        "g": 0.713399,
+        "b": 0.713399
       },
       "Locked": true,
       "Grid": true,
@@ -8430,12 +8420,12 @@
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Game Stages Card",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133054,
-        "g": 0.7133054,
-        "b": 0.7133054
+        "r": 0.713399,
+        "g": 0.713399,
+        "b": 0.713399
       },
       "Locked": true,
       "Grid": true,
@@ -8462,9 +8452,9 @@
         "posX": 25.421011,
         "posY": 0.99604857,
         "posZ": -3.946648,
-        "rotX": -3.49512447E-06,
-        "rotY": 90.0035553,
-        "rotZ": 3.255161E-05,
+        "rotX": -3.49520928E-06,
+        "rotY": 90.00395,
+        "rotZ": 3.2551754E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8474,7 +8464,7 @@
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.9980269,
-        "b": 0.996079147
+        "b": 0.996080637
       },
       "Locked": true,
       "Grid": true,
@@ -8532,9 +8522,9 @@
         "posX": 25.2413788,
         "posY": 1.56633687,
         "posZ": -7.401827,
-        "rotX": 6.02043974E-06,
+        "rotX": 6.0204793E-06,
         "rotY": 90.00111,
-        "rotZ": -1.76766225E-05,
+        "rotZ": -1.76766844E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8600,11 +8590,11 @@
       "Name": "Infinite_Bag",
       "Transform": {
         "posX": 25.1792049,
-        "posY": 1.11621165,
+        "posY": 1.11621153,
         "posZ": -10.3512125,
-        "rotX": 2.25453292E-07,
-        "rotY": 90.00318,
-        "rotZ": 2.994165E-06,
+        "rotX": 2.254483E-07,
+        "rotY": 90.00358,
+        "rotZ": 2.994181E-06,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8612,8 +8602,8 @@
       "Nickname": "Cattle",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.478584021,
-        "g": 0.2719184,
+        "r": 0.47872287,
+        "g": 0.272064775,
         "b": 0.0
       },
       "Locked": true,
@@ -8672,9 +8662,9 @@
         "posX": 21.8016586,
         "posY": 1.230164,
         "posZ": 5.63556,
-        "rotX": -1.62454089E-05,
-        "rotY": 90.00101,
-        "rotZ": 1.22903884E-06,
+        "rotX": -1.6245438E-05,
+        "rotY": 90.00111,
+        "rotZ": 1.22902827E-06,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8682,8 +8672,8 @@
       "Nickname": "Wood",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.472894549,
-        "g": 0.298547059,
+        "r": 0.473034859,
+        "g": 0.298694938,
         "b": 0.0
       },
       "Locked": true,
@@ -8740,11 +8730,11 @@
       "Name": "Infinite_Bag",
       "Transform": {
         "posX": 21.9008579,
-        "posY": 1.43201268,
+        "posY": 1.4320128,
         "posZ": 2.58793449,
-        "rotX": 4.235589E-07,
-        "rotY": 90.0018539,
-        "rotZ": 1.64228652E-06,
+        "rotX": 4.23556855E-07,
+        "rotY": 90.00225,
+        "rotZ": 1.642296E-06,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8752,8 +8742,8 @@
       "Nickname": "Clay",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.929422438,
-        "g": 0.36954397,
+        "r": 0.9294481,
+        "g": 0.369691879,
         "b": 0.0392156877
       },
       "Locked": true,
@@ -8812,9 +8802,9 @@
         "posX": 21.9768143,
         "posY": 1.20856869,
         "posZ": -0.336060971,
-        "rotX": -2.12086652E-05,
-        "rotY": 90.00162,
-        "rotZ": 3.60053377E-06,
+        "rotX": -2.12087725E-05,
+        "rotY": 90.0020142,
+        "rotZ": 3.60049876E-06,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8880,11 +8870,11 @@
       "Name": "Infinite_Bag",
       "Transform": {
         "posX": 22.1902924,
-        "posY": 1.01473176,
+        "posY": 1.01473188,
         "posZ": -3.546291,
-        "rotX": 2.78675725E-05,
-        "rotY": 90.00167,
-        "rotZ": 6.56439124E-06,
+        "rotX": 2.78676962E-05,
+        "rotY": 90.00207,
+        "rotZ": 6.56447128E-06,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8894,7 +8884,7 @@
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.9960791
+        "b": 0.9960806
       },
       "Locked": true,
       "Grid": true,
@@ -8952,9 +8942,9 @@
         "posX": 22.2177811,
         "posY": 1.06993032,
         "posZ": -6.92142725,
-        "rotX": 3.479255E-05,
+        "rotX": 3.47926762E-05,
         "rotY": 89.99922,
-        "rotZ": -1.56161423E-05,
+        "rotZ": -1.56162459E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8964,7 +8954,7 @@
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.18829222
+        "b": 0.1884288
       },
       "Locked": true,
       "Grid": true,
@@ -9022,9 +9012,9 @@
         "posX": 22.121376,
         "posY": 1.03996181,
         "posZ": -10.1665783,
-        "rotX": -3.79410722E-06,
+        "rotX": -3.794119E-06,
         "rotY": 89.9989243,
-        "rotZ": 4.825909E-06,
+        "rotZ": 4.825934E-06,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -9033,8 +9023,8 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
-        "g": 0.6716476,
-        "b": 0.1882922
+        "g": 0.6717516,
+        "b": 0.188428774
       },
       "Locked": true,
       "Grid": true,
@@ -9104,7 +9094,7 @@
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.658868134
+        "b": 0.658975244
       },
       "Locked": true,
       "Grid": true,
@@ -9162,19 +9152,19 @@
         "posX": 45.0096779,
         "posY": 1.05177462,
         "posZ": -2.67369366,
-        "rotX": 1.27647591,
-        "rotY": 0.0538159646,
+        "rotX": 1.27648377,
+        "rotY": 0.0538162664,
         "rotZ": 359.3751,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Game Stages Card",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.713309348,
-        "g": 0.713309348,
-        "b": 0.713309348
+        "r": 0.7134029,
+        "g": 0.7134029,
+        "b": 0.7134029
       },
       "Locked": true,
       "Grid": true,
@@ -9201,19 +9191,19 @@
         "posX": -62.4948235,
         "posY": 0.349156231,
         "posZ": 6.97405243,
-        "rotX": -0.00101526559,
+        "rotX": -0.00101527211,
         "rotY": 359.377319,
-        "rotZ": 0.00020613939,
+        "rotZ": 0.000206140438,
         "scaleX": 0.625,
         "scaleY": 0.625,
         "scaleZ": 0.625
       },
-      "Nickname": "",
+      "Nickname": "Scoring Reference",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.78684324,
-        "g": 0.78684324,
-        "b": 0.78684324
+        "r": 0.78691566,
+        "g": 0.78691566,
+        "b": 0.78691566
       },
       "Locked": true,
       "Grid": true,
@@ -9231,12 +9221,12 @@
     {
       "Name": "Deck",
       "Transform": {
-        "posX": 0.4132099,
-        "posY": 1.28203392,
-        "posZ": -8.300124,
-        "rotX": 359.895966,
-        "rotY": 180.031815,
-        "rotZ": 180.632126,
+        "posX": 0.418771684,
+        "posY": 1.28196931,
+        "posZ": -8.297897,
+        "rotX": 359.894958,
+        "rotY": 180.1222,
+        "rotZ": 180.631958,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -9244,9 +9234,9 @@
       "Nickname": "Stage 1 Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.713282049,
-        "g": 0.713282049,
-        "b": 0.713282049
+        "r": 0.7133756,
+        "g": 0.7133756,
+        "b": 0.7133756
       },
       "Locked": false,
       "Grid": true,
@@ -9255,10 +9245,10 @@
       "Sticky": true,
       "SidewaysCard": false,
       "DeckIDs": [
-        2100,
-        2101,
         2103,
-        2102
+        2100,
+        2102,
+        2101
       ],
       "CustomDeck": {
         "21": {
@@ -9269,8 +9259,39 @@
           "BackIsHidden": false
         }
       },
-      "LuaScript": "--[[ The OnLoad function. Called when a game finishes loading. ]]\r\nfunction onload()\r\n    print(\"Shuffling \" .. self.getName() .. \" cards\")\r\n    self.shuffle()\r\n    self.takeCardFromDeck({-2.63777614, 1.30030215, 0.194500551, 0.0, 180.0, 180.0}, true)\r\n    self.takeCardFromDeck({0.397731841, 1.26712489, 0.03501895, 0.0, 180.0, 180.0}, false)\r\n    self.takeCardFromDeck({0.316840023, 1.2755394, -4.122939, 0.0, 180.0, 180.0}, false)\r\nend\r\n",
+      "LuaScript": "",
       "ContainedObjects": [
+        {
+          "Name": "Card",
+          "Transform": {
+            "posX": 53.2155457,
+            "posY": 2.49880648,
+            "posZ": -11.6978359,
+            "rotX": 3.3311944,
+            "rotY": 179.867065,
+            "rotZ": 176.489151,
+            "scaleX": 1.0,
+            "scaleY": 1.0,
+            "scaleZ": 1.0
+          },
+          "Nickname": "",
+          "Description": "",
+          "ColorDiffuse": {
+            "r": 0.713239133,
+            "g": 0.713239133,
+            "b": 0.713239133
+          },
+          "Locked": false,
+          "Grid": true,
+          "Snap": true,
+          "Autoraise": true,
+          "Sticky": true,
+          "CardID": 2103,
+          "SidewaysCard": false,
+          "LuaScript": "",
+          "ContainedObjects": [],
+          "GUID": ""
+        },
         {
           "Name": "Card",
           "Transform": {
@@ -9335,69 +9356,38 @@
           "Snap": true,
           "Autoraise": true,
           "Sticky": true,
-          "CardID": 2101,
-          "SidewaysCard": false,
-          "LuaScript": "",
-          "ContainedObjects": [],
-          "GUID": ""
-        },
-        {
-          "Name": "Card",
-          "Transform": {
-            "posX": 53.2155457,
-            "posY": 2.49880648,
-            "posZ": -11.6978359,
-            "rotX": 3.3311944,
-            "rotY": 179.867065,
-            "rotZ": 176.489151,
-            "scaleX": 1.0,
-            "scaleY": 1.0,
-            "scaleZ": 1.0
-          },
-          "Nickname": "",
-          "Description": "",
-          "ColorDiffuse": {
-            "r": 0.713239133,
-            "g": 0.713239133,
-            "b": 0.713239133
-          },
-          "Locked": false,
-          "Grid": true,
-          "Snap": true,
-          "Autoraise": true,
-          "Sticky": true,
-          "CardID": 2103,
-          "SidewaysCard": false,
-          "LuaScript": "",
-          "ContainedObjects": [],
-          "GUID": ""
-        },
-        {
-          "Name": "Card",
-          "Transform": {
-            "posX": 53.2155457,
-            "posY": 2.49880648,
-            "posZ": -11.6978359,
-            "rotX": 3.3311944,
-            "rotY": 179.867065,
-            "rotZ": 176.489151,
-            "scaleX": 1.0,
-            "scaleY": 1.0,
-            "scaleZ": 1.0
-          },
-          "Nickname": "",
-          "Description": "",
-          "ColorDiffuse": {
-            "r": 0.713239133,
-            "g": 0.713239133,
-            "b": 0.713239133
-          },
-          "Locked": false,
-          "Grid": true,
-          "Snap": true,
-          "Autoraise": true,
-          "Sticky": true,
           "CardID": 2102,
+          "SidewaysCard": false,
+          "LuaScript": "",
+          "ContainedObjects": [],
+          "GUID": ""
+        },
+        {
+          "Name": "Card",
+          "Transform": {
+            "posX": 53.2155457,
+            "posY": 2.49880648,
+            "posZ": -11.6978359,
+            "rotX": 3.3311944,
+            "rotY": 179.867065,
+            "rotZ": 176.489151,
+            "scaleX": 1.0,
+            "scaleY": 1.0,
+            "scaleZ": 1.0
+          },
+          "Nickname": "",
+          "Description": "",
+          "ColorDiffuse": {
+            "r": 0.713239133,
+            "g": 0.713239133,
+            "b": 0.713239133
+          },
+          "Locked": false,
+          "Grid": true,
+          "Snap": true,
+          "Autoraise": true,
+          "Sticky": true,
+          "CardID": 2101,
           "SidewaysCard": false,
           "LuaScript": "",
           "ContainedObjects": [],
@@ -9409,12 +9399,12 @@
     {
       "Name": "Deck",
       "Transform": {
-        "posX": 3.42946959,
-        "posY": 1.24883556,
-        "posZ": -8.052031,
-        "rotX": 359.895935,
-        "rotY": 180.0375,
-        "rotZ": 180.632126,
+        "posX": 3.4350183,
+        "posY": 1.24877107,
+        "posZ": -8.049803,
+        "rotX": 359.8949,
+        "rotY": 180.127991,
+        "rotZ": 180.631958,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -9422,9 +9412,9 @@
       "Nickname": "Stage 2 Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.713282049,
-        "g": 0.713282049,
-        "b": 0.713282049
+        "r": 0.7133756,
+        "g": 0.7133756,
+        "b": 0.7133756
       },
       "Locked": false,
       "Grid": true,
@@ -9433,9 +9423,9 @@
       "Sticky": true,
       "SidewaysCard": false,
       "DeckIDs": [
-        1404,
         1405,
-        1406
+        1406,
+        1404
       ],
       "CustomDeck": {
         "14": {
@@ -9446,39 +9436,8 @@
           "BackIsHidden": false
         }
       },
-      "LuaScript": "--[[ The OnLoad function. Called when a game finishes loading. ]]\r\nfunction onload()\r\n    print(\"Shuffling \" .. self.getName() .. \" cards\")\r\n    self.shuffle()\r\n    \r\n    self.takeCardFromDeck({3.30984449, 1.231528, 0.00103998382, 0.0, 180.0, 180.0}, false)\r\n    self.takeCardFromDeck({3.24591732, 1.23985708, -4.213084, 0.0, 180.0, 180.0}, false)\r\nend\r\n",
+      "LuaScript": "",
       "ContainedObjects": [
-        {
-          "Name": "Card",
-          "Transform": {
-            "posX": 53.2155457,
-            "posY": 2.49880648,
-            "posZ": -11.6978359,
-            "rotX": 359.533081,
-            "rotY": 179.959808,
-            "rotZ": 184.90921,
-            "scaleX": 1.0,
-            "scaleY": 1.0,
-            "scaleZ": 1.0
-          },
-          "Nickname": "",
-          "Description": "",
-          "ColorDiffuse": {
-            "r": 0.713239133,
-            "g": 0.713239133,
-            "b": 0.713239133
-          },
-          "Locked": false,
-          "Grid": true,
-          "Snap": true,
-          "Autoraise": true,
-          "Sticky": true,
-          "CardID": 1404,
-          "SidewaysCard": false,
-          "LuaScript": "",
-          "ContainedObjects": [],
-          "GUID": ""
-        },
         {
           "Name": "Card",
           "Transform": {
@@ -9540,60 +9499,16 @@
           "LuaScript": "",
           "ContainedObjects": [],
           "GUID": ""
-        }
-      ],
-      "GUID": "ac1369"
-    },
-    {
-      "Name": "Deck",
-      "Transform": {
-        "posX": 7.55944,
-        "posY": 1.2157166,
-        "posZ": -8.03801,
-        "rotX": -1.89486473E-05,
-        "rotY": 180.000076,
-        "rotZ": 180.0,
-        "scaleX": 1.0,
-        "scaleY": 1.0,
-        "scaleZ": 1.0
-      },
-      "Nickname": "Stage 3 Deck",
-      "Description": "",
-      "ColorDiffuse": {
-        "r": 0.713282049,
-        "g": 0.713282049,
-        "b": 0.713282049
-      },
-      "Locked": false,
-      "Grid": true,
-      "Snap": true,
-      "Autoraise": true,
-      "Sticky": true,
-      "SidewaysCard": false,
-      "DeckIDs": [
-        1407,
-        1408
-      ],
-      "CustomDeck": {
-        "14": {
-          "FaceURL": "https://www.dropbox.com/s/yqqwv0zmy3648hy/Stage%20A.jpg?dl=1",
-          "BackURL": "https://www.dropbox.com/s/az1ywbwhkob49yt/Stage%20Backs%20A.jpg?dl=1{Unique}",
-          "NumWidth": 10,
-          "NumHeight": 7,
-          "BackIsHidden": false
-        }
-      },
-      "LuaScript": "--[[ The OnLoad function. Called when a game finishes loading. ]]\r\nfunction onload()\r\n    print(\"Shuffling \" .. self.getName() .. \" cards\")\r\n    self.shuffle()\r\n    \r\n    self.takeCardFromDeck({7.650797, 1.205321, -3.60009027, 0.0, 180.0, 180.0}, false)\r\nend\r\n",
-      "ContainedObjects": [
+        },
         {
           "Name": "Card",
           "Transform": {
             "posX": 53.2155457,
             "posY": 2.49880648,
             "posZ": -11.6978359,
-            "rotX": 357.478027,
-            "rotY": 180.125626,
-            "rotZ": 176.725357,
+            "rotX": 359.533081,
+            "rotY": 179.959808,
+            "rotZ": 184.90921,
             "scaleX": 1.0,
             "scaleY": 1.0,
             "scaleZ": 1.0
@@ -9610,12 +9525,56 @@
           "Snap": true,
           "Autoraise": true,
           "Sticky": true,
-          "CardID": 1407,
+          "CardID": 1404,
           "SidewaysCard": false,
           "LuaScript": "",
           "ContainedObjects": [],
           "GUID": ""
-        },
+        }
+      ],
+      "GUID": "ac1369"
+    },
+    {
+      "Name": "Deck",
+      "Transform": {
+        "posX": 7.55944,
+        "posY": 1.2157166,
+        "posZ": -8.03801,
+        "rotX": -1.55574016E-05,
+        "rotY": 180.000381,
+        "rotZ": 180.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "Stage 3 Deck",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.7133756,
+        "g": 0.7133756,
+        "b": 0.7133756
+      },
+      "Locked": false,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "SidewaysCard": false,
+      "DeckIDs": [
+        1408,
+        1407
+      ],
+      "CustomDeck": {
+        "14": {
+          "FaceURL": "https://www.dropbox.com/s/yqqwv0zmy3648hy/Stage%20A.jpg?dl=1",
+          "BackURL": "https://www.dropbox.com/s/az1ywbwhkob49yt/Stage%20Backs%20A.jpg?dl=1{Unique}",
+          "NumWidth": 10,
+          "NumHeight": 7,
+          "BackIsHidden": false
+        }
+      },
+      "LuaScript": "",
+      "ContainedObjects": [
         {
           "Name": "Card",
           "Transform": {
@@ -9646,60 +9605,16 @@
           "LuaScript": "",
           "ContainedObjects": [],
           "GUID": ""
-        }
-      ],
-      "GUID": "ceb91a"
-    },
-    {
-      "Name": "Deck",
-      "Transform": {
-        "posX": 10.5654831,
-        "posY": 1.2157166,
-        "posZ": -8.035828,
-        "rotX": -1.211331E-05,
-        "rotY": 180.000076,
-        "rotZ": 180.0,
-        "scaleX": 1.0,
-        "scaleY": 1.0,
-        "scaleZ": 1.0
-      },
-      "Nickname": "Stage 4 Deck",
-      "Description": "",
-      "ColorDiffuse": {
-        "r": 0.713282049,
-        "g": 0.713282049,
-        "b": 0.713282049
-      },
-      "Locked": false,
-      "Grid": true,
-      "Snap": true,
-      "Autoraise": true,
-      "Sticky": true,
-      "SidewaysCard": false,
-      "DeckIDs": [
-        1409,
-        1410
-      ],
-      "CustomDeck": {
-        "14": {
-          "FaceURL": "https://www.dropbox.com/s/yqqwv0zmy3648hy/Stage%20A.jpg?dl=1",
-          "BackURL": "https://www.dropbox.com/s/az1ywbwhkob49yt/Stage%20Backs%20A.jpg?dl=1{Unique}",
-          "NumWidth": 10,
-          "NumHeight": 7,
-          "BackIsHidden": false
-        }
-      },
-      "LuaScript": "--[[ The OnLoad function. Called when a game finishes loading. ]]\r\nfunction onload()\r\n    print(\"Shuffling \" .. self.getName() .. \" cards\")\r\n    self.shuffle()\r\n    \r\n    self.takeCardFromDeck({10.4956465, 1.205321, -3.554801, 0.0, 180.0, 180.0}, false)\r\nend\r\n",
-      "ContainedObjects": [
+        },
         {
           "Name": "Card",
           "Transform": {
             "posX": 53.2155457,
             "posY": 2.49880648,
             "posZ": -11.6978359,
-            "rotX": 356.824738,
-            "rotY": 179.980255,
-            "rotZ": 180.635468,
+            "rotX": 357.478027,
+            "rotY": 180.125626,
+            "rotZ": 176.725357,
             "scaleX": 1.0,
             "scaleY": 1.0,
             "scaleZ": 1.0
@@ -9716,12 +9631,56 @@
           "Snap": true,
           "Autoraise": true,
           "Sticky": true,
-          "CardID": 1409,
+          "CardID": 1407,
           "SidewaysCard": false,
           "LuaScript": "",
           "ContainedObjects": [],
           "GUID": ""
-        },
+        }
+      ],
+      "GUID": "ceb91a"
+    },
+    {
+      "Name": "Deck",
+      "Transform": {
+        "posX": 10.5654831,
+        "posY": 1.2157166,
+        "posZ": -8.035828,
+        "rotX": -1.955862E-05,
+        "rotY": 180.000351,
+        "rotZ": 180.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "Stage 4 Deck",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.7133756,
+        "g": 0.7133756,
+        "b": 0.7133756
+      },
+      "Locked": false,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "SidewaysCard": false,
+      "DeckIDs": [
+        1410,
+        1409
+      ],
+      "CustomDeck": {
+        "14": {
+          "FaceURL": "https://www.dropbox.com/s/yqqwv0zmy3648hy/Stage%20A.jpg?dl=1",
+          "BackURL": "https://www.dropbox.com/s/az1ywbwhkob49yt/Stage%20Backs%20A.jpg?dl=1{Unique}",
+          "NumWidth": 10,
+          "NumHeight": 7,
+          "BackIsHidden": false
+        }
+      },
+      "LuaScript": "",
+      "ContainedObjects": [
         {
           "Name": "Card",
           "Transform": {
@@ -9752,6 +9711,37 @@
           "LuaScript": "",
           "ContainedObjects": [],
           "GUID": ""
+        },
+        {
+          "Name": "Card",
+          "Transform": {
+            "posX": 53.2155457,
+            "posY": 2.49880648,
+            "posZ": -11.6978359,
+            "rotX": 356.824738,
+            "rotY": 179.980255,
+            "rotZ": 180.635468,
+            "scaleX": 1.0,
+            "scaleY": 1.0,
+            "scaleZ": 1.0
+          },
+          "Nickname": "",
+          "Description": "",
+          "ColorDiffuse": {
+            "r": 0.713239133,
+            "g": 0.713239133,
+            "b": 0.713239133
+          },
+          "Locked": false,
+          "Grid": true,
+          "Snap": true,
+          "Autoraise": true,
+          "Sticky": true,
+          "CardID": 1409,
+          "SidewaysCard": false,
+          "LuaScript": "",
+          "ContainedObjects": [],
+          "GUID": ""
         }
       ],
       "GUID": "8f6c74"
@@ -9762,8 +9752,8 @@
         "posX": 13.5698023,
         "posY": 1.21571648,
         "posZ": -7.92842054,
-        "rotX": -1.96331457E-05,
-        "rotY": 180.000076,
+        "rotX": -1.36254494E-05,
+        "rotY": 180.000259,
         "rotZ": 180.0,
         "scaleX": 1.0,
         "scaleY": 1.0,
@@ -9772,9 +9762,9 @@
       "Nickname": "Stage 5 Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.713282049,
-        "g": 0.713282049,
-        "b": 0.713282049
+        "r": 0.7133756,
+        "g": 0.7133756,
+        "b": 0.7133756
       },
       "Locked": false,
       "Grid": true,
@@ -9795,7 +9785,7 @@
           "BackIsHidden": false
         }
       },
-      "LuaScript": "--[[ The OnLoad function. Called when a game finishes loading. ]]\r\nfunction onload()\r\n    print(\"Shuffling \" .. self.getName() .. \" cards\")\r\n    self.shuffle()\r\n    \r\n    self.takeCardFromDeck({13.5662766, 1.20532107, -3.49873352, 0.0, 180.0, 180.0}, false)\r\nend\r\n",
+      "LuaScript": "",
       "ContainedObjects": [
         {
           "Name": "Card",
@@ -9867,9 +9857,9 @@
       "Transform": {
         "posX": 16.707428,
         "posY": 1.20532107,
-        "posZ": -3.49776745,
-        "rotX": -1.26424184E-05,
-        "rotY": 180.005386,
+        "posZ": -3.49776721,
+        "rotX": -1.39909416E-05,
+        "rotY": 180.0058,
         "rotZ": 180.0,
         "scaleX": 1.0,
         "scaleY": 1.0,
@@ -9878,9 +9868,9 @@
       "Nickname": "Stage 6 Card",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7132859,
-        "g": 0.7132859,
-        "b": 0.7132859
+        "r": 0.7133795,
+        "g": 0.7133795,
+        "b": 0.7133795
       },
       "Locked": false,
       "Grid": true,
@@ -9904,416 +9894,12 @@
     {
       "Name": "Deck",
       "Transform": {
-        "posX": -16.5743065,
-        "posY": 1.02674639,
-        "posZ": -8.833924,
-        "rotX": -3.7277855E-06,
-        "rotY": 180.000244,
-        "rotZ": 1.28225724E-06,
-        "scaleX": 1.0,
-        "scaleY": 1.0,
-        "scaleZ": 1.0
-      },
-      "Nickname": "Action cards for 3 player game",
-      "Description": "",
-      "ColorDiffuse": {
-        "r": 0.713270366,
-        "g": 0.713270366,
-        "b": 0.713270366
-      },
-      "Locked": false,
-      "Grid": true,
-      "Snap": true,
-      "Autoraise": true,
-      "Sticky": true,
-      "SidewaysCard": false,
-      "DeckIDs": [
-        1710,
-        1706,
-        1701,
-        1700
-      ],
-      "CustomDeck": {
-        "17": {
-          "FaceURL": "https://www.dropbox.com/s/k9aiyh7hvfb23b4/Action%20Cards%20A.jpg?dl=1",
-          "BackURL": "https://www.dropbox.com/s/2p6sjf2x5j0zkxg/Action%20Cards%20%28Family%20A%29.jpg?dl=1{Unique}",
-          "NumWidth": 10,
-          "NumHeight": 7,
-          "BackIsHidden": false
-        }
-      },
-      "LuaScript": "",
-      "ContainedObjects": [
-        {
-          "Name": "Card",
-          "Transform": {
-            "posX": 53.35008,
-            "posY": 2.498969,
-            "posZ": -14.0721512,
-            "rotX": 5.01264429,
-            "rotY": 180.0483,
-            "rotZ": 0.7820306,
-            "scaleX": 1.0,
-            "scaleY": 1.0,
-            "scaleZ": 1.0
-          },
-          "Nickname": "",
-          "Description": "",
-          "ColorDiffuse": {
-            "r": 0.713239133,
-            "g": 0.713239133,
-            "b": 0.713239133
-          },
-          "Locked": false,
-          "Grid": true,
-          "Snap": true,
-          "Autoraise": true,
-          "Sticky": true,
-          "CardID": 1710,
-          "SidewaysCard": false,
-          "LuaScript": "",
-          "ContainedObjects": [],
-          "GUID": ""
-        },
-        {
-          "Name": "Card",
-          "Transform": {
-            "posX": 53.35008,
-            "posY": 2.498969,
-            "posZ": -14.0721512,
-            "rotX": 5.01264429,
-            "rotY": 180.0483,
-            "rotZ": 0.7820306,
-            "scaleX": 1.0,
-            "scaleY": 1.0,
-            "scaleZ": 1.0
-          },
-          "Nickname": "",
-          "Description": "",
-          "ColorDiffuse": {
-            "r": 0.713239133,
-            "g": 0.713239133,
-            "b": 0.713239133
-          },
-          "Locked": false,
-          "Grid": true,
-          "Snap": true,
-          "Autoraise": true,
-          "Sticky": true,
-          "CardID": 1706,
-          "SidewaysCard": false,
-          "LuaScript": "",
-          "ContainedObjects": [],
-          "GUID": ""
-        },
-        {
-          "Name": "Card",
-          "Transform": {
-            "posX": 53.35008,
-            "posY": 2.498969,
-            "posZ": -14.0721512,
-            "rotX": 5.01264429,
-            "rotY": 180.0483,
-            "rotZ": 0.7820306,
-            "scaleX": 1.0,
-            "scaleY": 1.0,
-            "scaleZ": 1.0
-          },
-          "Nickname": "",
-          "Description": "",
-          "ColorDiffuse": {
-            "r": 0.713239133,
-            "g": 0.713239133,
-            "b": 0.713239133
-          },
-          "Locked": false,
-          "Grid": true,
-          "Snap": true,
-          "Autoraise": true,
-          "Sticky": true,
-          "CardID": 1701,
-          "SidewaysCard": false,
-          "LuaScript": "",
-          "ContainedObjects": [],
-          "GUID": ""
-        },
-        {
-          "Name": "Card",
-          "Transform": {
-            "posX": 53.35008,
-            "posY": 2.498969,
-            "posZ": -14.0721512,
-            "rotX": 5.01264429,
-            "rotY": 180.0483,
-            "rotZ": 0.7820306,
-            "scaleX": 1.0,
-            "scaleY": 1.0,
-            "scaleZ": 1.0
-          },
-          "Nickname": "",
-          "Description": "",
-          "ColorDiffuse": {
-            "r": 0.713239133,
-            "g": 0.713239133,
-            "b": 0.713239133
-          },
-          "Locked": false,
-          "Grid": true,
-          "Snap": true,
-          "Autoraise": true,
-          "Sticky": true,
-          "CardID": 1700,
-          "SidewaysCard": false,
-          "LuaScript": "",
-          "ContainedObjects": [],
-          "GUID": ""
-        }
-      ],
-      "GUID": "4bdd23"
-    },
-    {
-      "Name": "Deck",
-      "Transform": {
-        "posX": -18.96031,
-        "posY": 1.029574,
-        "posZ": -8.847262,
-        "rotX": -4.8957404E-06,
-        "rotY": 180.000427,
-        "rotZ": 3.12731527E-06,
-        "scaleX": 1.0,
-        "scaleY": 1.0,
-        "scaleZ": 1.0
-      },
-      "Nickname": "Action cards for 4 player game",
-      "Description": "",
-      "ColorDiffuse": {
-        "r": 0.713270366,
-        "g": 0.713270366,
-        "b": 0.713270366
-      },
-      "Locked": false,
-      "Grid": true,
-      "Snap": true,
-      "Autoraise": true,
-      "Sticky": true,
-      "SidewaysCard": false,
-      "DeckIDs": [
-        1815,
-        1811,
-        1809,
-        1807,
-        1805,
-        1803
-      ],
-      "CustomDeck": {
-        "18": {
-          "FaceURL": "https://www.dropbox.com/s/k9aiyh7hvfb23b4/Action%20Cards%20A.jpg?dl=1",
-          "BackURL": "https://www.dropbox.com/s/2p6sjf2x5j0zkxg/Action%20Cards%20%28Family%20A%29.jpg?dl=1{Unique}",
-          "NumWidth": 10,
-          "NumHeight": 7,
-          "BackIsHidden": false
-        }
-      },
-      "LuaScript": "",
-      "ContainedObjects": [
-        {
-          "Name": "Card",
-          "Transform": {
-            "posX": 53.35008,
-            "posY": 2.498969,
-            "posZ": -14.0721512,
-            "rotX": 3.577682,
-            "rotY": 179.878036,
-            "rotZ": 356.678436,
-            "scaleX": 1.0,
-            "scaleY": 1.0,
-            "scaleZ": 1.0
-          },
-          "Nickname": "",
-          "Description": "",
-          "ColorDiffuse": {
-            "r": 0.713239133,
-            "g": 0.713239133,
-            "b": 0.713239133
-          },
-          "Locked": false,
-          "Grid": true,
-          "Snap": true,
-          "Autoraise": true,
-          "Sticky": true,
-          "CardID": 1815,
-          "SidewaysCard": false,
-          "LuaScript": "",
-          "ContainedObjects": [],
-          "GUID": ""
-        },
-        {
-          "Name": "Card",
-          "Transform": {
-            "posX": 53.35008,
-            "posY": 2.498969,
-            "posZ": -14.0721512,
-            "rotX": 3.577682,
-            "rotY": 179.878036,
-            "rotZ": 356.678436,
-            "scaleX": 1.0,
-            "scaleY": 1.0,
-            "scaleZ": 1.0
-          },
-          "Nickname": "",
-          "Description": "",
-          "ColorDiffuse": {
-            "r": 0.713239133,
-            "g": 0.713239133,
-            "b": 0.713239133
-          },
-          "Locked": false,
-          "Grid": true,
-          "Snap": true,
-          "Autoraise": true,
-          "Sticky": true,
-          "CardID": 1811,
-          "SidewaysCard": false,
-          "LuaScript": "",
-          "ContainedObjects": [],
-          "GUID": ""
-        },
-        {
-          "Name": "Card",
-          "Transform": {
-            "posX": 53.35008,
-            "posY": 2.498969,
-            "posZ": -14.0721512,
-            "rotX": 3.577682,
-            "rotY": 179.878036,
-            "rotZ": 356.678436,
-            "scaleX": 1.0,
-            "scaleY": 1.0,
-            "scaleZ": 1.0
-          },
-          "Nickname": "",
-          "Description": "",
-          "ColorDiffuse": {
-            "r": 0.713239133,
-            "g": 0.713239133,
-            "b": 0.713239133
-          },
-          "Locked": false,
-          "Grid": true,
-          "Snap": true,
-          "Autoraise": true,
-          "Sticky": true,
-          "CardID": 1809,
-          "SidewaysCard": false,
-          "LuaScript": "",
-          "ContainedObjects": [],
-          "GUID": ""
-        },
-        {
-          "Name": "Card",
-          "Transform": {
-            "posX": 53.35008,
-            "posY": 2.498969,
-            "posZ": -14.0721512,
-            "rotX": 3.577682,
-            "rotY": 179.878036,
-            "rotZ": 356.678436,
-            "scaleX": 1.0,
-            "scaleY": 1.0,
-            "scaleZ": 1.0
-          },
-          "Nickname": "",
-          "Description": "",
-          "ColorDiffuse": {
-            "r": 0.713239133,
-            "g": 0.713239133,
-            "b": 0.713239133
-          },
-          "Locked": false,
-          "Grid": true,
-          "Snap": true,
-          "Autoraise": true,
-          "Sticky": true,
-          "CardID": 1807,
-          "SidewaysCard": false,
-          "LuaScript": "",
-          "ContainedObjects": [],
-          "GUID": ""
-        },
-        {
-          "Name": "Card",
-          "Transform": {
-            "posX": 53.35008,
-            "posY": 2.498969,
-            "posZ": -14.0721512,
-            "rotX": 3.577682,
-            "rotY": 179.878036,
-            "rotZ": 356.678436,
-            "scaleX": 1.0,
-            "scaleY": 1.0,
-            "scaleZ": 1.0
-          },
-          "Nickname": "",
-          "Description": "",
-          "ColorDiffuse": {
-            "r": 0.713239133,
-            "g": 0.713239133,
-            "b": 0.713239133
-          },
-          "Locked": false,
-          "Grid": true,
-          "Snap": true,
-          "Autoraise": true,
-          "Sticky": true,
-          "CardID": 1805,
-          "SidewaysCard": false,
-          "LuaScript": "",
-          "ContainedObjects": [],
-          "GUID": ""
-        },
-        {
-          "Name": "Card",
-          "Transform": {
-            "posX": 53.35008,
-            "posY": 2.498969,
-            "posZ": -14.0721512,
-            "rotX": 3.577682,
-            "rotY": 179.878036,
-            "rotZ": 356.678436,
-            "scaleX": 1.0,
-            "scaleY": 1.0,
-            "scaleZ": 1.0
-          },
-          "Nickname": "",
-          "Description": "",
-          "ColorDiffuse": {
-            "r": 0.713239133,
-            "g": 0.713239133,
-            "b": 0.713239133
-          },
-          "Locked": false,
-          "Grid": true,
-          "Snap": true,
-          "Autoraise": true,
-          "Sticky": true,
-          "CardID": 1803,
-          "SidewaysCard": false,
-          "LuaScript": "",
-          "ContainedObjects": [],
-          "GUID": ""
-        }
-      ],
-      "GUID": "2dd967"
-    },
-    {
-      "Name": "Deck",
-      "Transform": {
-        "posX": -21.1979446,
+        "posX": -16.806633,
         "posY": 1.02957416,
-        "posZ": -8.848882,
-        "rotX": -2.441536E-06,
-        "rotY": 180.0007,
-        "rotZ": 2.952516E-06,
+        "posZ": -9.124255,
+        "rotX": -5.952289E-07,
+        "rotY": 180.002075,
+        "rotZ": -5.038669E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -10321,9 +9907,9 @@
       "Nickname": "Action cards for 5 player game",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.713270366,
-        "g": 0.713270366,
-        "b": 0.713270366
+        "r": 0.713363945,
+        "g": 0.713363945,
+        "b": 0.713363945
       },
       "Locked": false,
       "Grid": true,
@@ -10543,11 +10129,11 @@
       "Name": "Bag",
       "Transform": {
         "posX": 52.7254257,
-        "posY": 0.521108568,
+        "posY": 0.5211132,
         "posZ": -11.6641788,
-        "rotX": -7.18943147E-06,
-        "rotY": 0.160271987,
-        "rotZ": 5.07355944E-05,
+        "rotX": -8.037163E-06,
+        "rotY": 0.160272986,
+        "rotZ": 5.02895673E-05,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
@@ -10555,9 +10141,9 @@
       "Nickname": "Action Cards",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.686390758,
+        "r": 0.686490357,
         "g": 0.99999994,
-        "b": 0.655027032
+        "b": 0.655134141
       },
       "Locked": true,
       "Grid": true,
@@ -10573,22 +10159,22 @@
     {
       "Name": "DeckCustom",
       "Transform": {
-        "posX": -23.54372,
-        "posY": 1.16203785,
-        "posZ": 1.45465171,
-        "rotX": 2.79202527E-06,
-        "rotY": 179.821976,
-        "rotZ": -1.67133658E-05,
+        "posX": -23.5437679,
+        "posY": 1.162038,
+        "posZ": 1.45463872,
+        "rotX": 2.918938E-06,
+        "rotY": 179.823166,
+        "rotZ": -1.66977625E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Minor Improvements K-Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7132509,
-        "g": 0.7132509,
-        "b": 0.7132509
+        "r": 0.713344455,
+        "g": 0.713344455,
+        "b": 0.713344455
       },
       "Locked": false,
       "Grid": true,
@@ -11991,22 +11577,22 @@
     {
       "Name": "Deck",
       "Transform": {
-        "posX": -16.8539066,
+        "posX": -16.8539085,
         "posY": 1.05810463,
-        "posZ": 1.42916918,
-        "rotX": 1.04800677E-07,
-        "rotY": 180.000458,
-        "rotZ": 1.59009286E-08,
+        "posZ": 1.42916286,
+        "rotX": 6.319703E-07,
+        "rotY": 180.001251,
+        "rotZ": -3.93766277E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Occupations K-Deck (1+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7132586,
-        "g": 0.7132586,
-        "b": 0.7132586
+        "r": 0.7133522,
+        "g": 0.7133522,
+        "b": 0.7133522
       },
       "Locked": false,
       "Grid": true,
@@ -12641,22 +12227,22 @@
     {
       "Name": "Deck",
       "Transform": {
-        "posX": -18.98935,
-        "posY": 1.01912975,
-        "posZ": 1.46219158,
-        "rotX": 5.861481E-07,
-        "rotY": 179.999832,
-        "rotZ": -1.71457282E-06,
+        "posX": -18.9893551,
+        "posY": 1.01912987,
+        "posZ": 1.46221244,
+        "rotX": 1.90308413E-07,
+        "rotY": 179.9987,
+        "rotZ": -3.03656816E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Occupations K-Deck (3+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7132586,
-        "g": 0.7132586,
-        "b": 0.7132586
+        "r": 0.7133522,
+        "g": 0.7133522,
+        "b": 0.7133522
       },
       "Locked": false,
       "Grid": true,
@@ -13003,22 +12589,22 @@
     {
       "Name": "Deck",
       "Transform": {
-        "posX": -21.2272072,
-        "posY": 1.05810475,
-        "posZ": 1.44899189,
-        "rotX": 2.024712E-06,
-        "rotY": 180.0016,
-        "rotZ": -1.35262444E-05,
+        "posX": -21.22718,
+        "posY": 1.05810463,
+        "posZ": 1.44900239,
+        "rotX": -1.23822986E-06,
+        "rotY": 180.001434,
+        "rotZ": 8.854798E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Occupations K-Deck (4+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7132586,
-        "g": 0.7132586,
-        "b": 0.7132586
+        "r": 0.7133522,
+        "g": 0.7133522,
+        "b": 0.7133522
       },
       "Locked": false,
       "Grid": true,
@@ -13653,22 +13239,22 @@
     {
       "Name": "DeckCustom",
       "Transform": {
-        "posX": -23.53172,
-        "posY": 1.20534337,
-        "posZ": -1.83026087,
-        "rotX": 4.91018272E-06,
-        "rotY": 180.002823,
-        "rotZ": 4.876634E-06,
+        "posX": -23.5316734,
+        "posY": 1.20534348,
+        "posZ": -1.83026,
+        "rotX": -8.751439E-06,
+        "rotY": 180.003845,
+        "rotZ": 2.55420873E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Minor Improvements E-Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7132509,
-        "g": 0.7132509,
-        "b": 0.7132509
+        "r": 0.713344455,
+        "g": 0.713344455,
+        "b": 0.713344455
       },
       "Locked": false,
       "Grid": true,
@@ -15391,22 +14977,22 @@
     {
       "Name": "Deck",
       "Transform": {
-        "posX": -16.8233585,
-        "posY": 1.09707952,
-        "posZ": -1.92093468,
-        "rotX": 1.00813782E-06,
-        "rotY": 180.000153,
-        "rotZ": -5.96770724E-06,
+        "posX": -16.8234043,
+        "posY": 1.09707963,
+        "posZ": -1.92094171,
+        "rotX": 2.03620857E-06,
+        "rotY": 180.001144,
+        "rotZ": -6.44153624E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Occupations E-Deck (1+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7132586,
-        "g": 0.7132586,
-        "b": 0.7132586
+        "r": 0.7133522,
+        "g": 0.7133522,
+        "b": 0.7133522
       },
       "Locked": false,
       "Grid": true,
@@ -16330,21 +15916,21 @@
       "Name": "Deck",
       "Transform": {
         "posX": -19.0336361,
-        "posY": 1.06676567,
-        "posZ": -1.86758471,
-        "rotX": 2.06365962E-06,
-        "rotY": 180.000244,
-        "rotZ": -1.51292825E-05,
+        "posY": 1.06676579,
+        "posZ": -1.86755323,
+        "rotX": 1.97843724E-06,
+        "rotY": 179.999344,
+        "rotZ": -1.5066802E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Occupations E-Deck (3+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7132586,
-        "g": 0.7132586,
-        "b": 0.7132586
+        "r": 0.7133522,
+        "g": 0.7133522,
+        "b": 0.7133522
       },
       "Locked": false,
       "Grid": true,
@@ -17043,22 +16629,22 @@
     {
       "Name": "DeckCustom",
       "Transform": {
-        "posX": -21.2265568,
+        "posX": -21.2265244,
         "posY": 1.07975745,
-        "posZ": -1.80951428,
-        "rotX": 2.48541187E-06,
-        "rotY": 179.999741,
-        "rotZ": -1.656205E-05,
+        "posZ": -1.80949676,
+        "rotX": -1.34700758E-06,
+        "rotY": 179.999084,
+        "rotZ": 1.08842514E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Occupations E-Deck (4+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7132509,
-        "g": 0.7132509,
-        "b": 0.7132509
+        "r": 0.713344455,
+        "g": 0.713344455,
+        "b": 0.713344455
       },
       "Locked": false,
       "Grid": true,
@@ -17860,22 +17446,22 @@
     {
       "Name": "DeckCustom",
       "Transform": {
-        "posX": -23.5424824,
-        "posY": 1.162038,
-        "posZ": -5.288166,
-        "rotX": -3.07499772E-06,
-        "rotY": 180.000626,
-        "rotZ": 7.880877E-06,
+        "posX": -23.5424881,
+        "posY": 1.16203785,
+        "posZ": -5.2881856,
+        "rotX": -2.08031747E-06,
+        "rotY": 180.002075,
+        "rotZ": 7.35804133E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Minor Improvements I-Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7132509,
-        "g": 0.7132509,
-        "b": 0.7132509
+        "r": 0.713344455,
+        "g": 0.713344455,
+        "b": 0.713344455
       },
       "Locked": false,
       "Grid": true,
@@ -19279,21 +18865,21 @@
       "Name": "Deck",
       "Transform": {
         "posX": -16.7600632,
-        "posY": 1.05810475,
-        "posZ": -5.300871,
-        "rotX": -4.43544081E-07,
-        "rotY": 179.999542,
-        "rotZ": 5.26443546E-06,
+        "posY": 1.05810463,
+        "posZ": -5.30087,
+        "rotX": -4.81352231E-07,
+        "rotY": 179.999481,
+        "rotZ": 5.05831667E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Occupations I-Deck (1+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.71325475,
-        "g": 0.71325475,
-        "b": 0.71325475
+        "r": 0.7133483,
+        "g": 0.7133483,
+        "b": 0.7133483
       },
       "Locked": false,
       "Grid": true,
@@ -19928,22 +19514,22 @@
     {
       "Name": "Deck",
       "Transform": {
-        "posX": -18.9881611,
+        "posX": -18.9881668,
         "posY": 1.01912975,
-        "posZ": -5.28346872,
-        "rotX": -3.00195246E-08,
+        "posZ": -5.28346825,
+        "rotX": 8.421697E-09,
         "rotY": 180.000183,
-        "rotZ": 5.51956E-09,
+        "rotZ": 1.842707E-07,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Occupations I-Deck (3+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.71325475,
-        "g": 0.71325475,
-        "b": 0.71325475
+        "r": 0.7133483,
+        "g": 0.7133483,
+        "b": 0.7133483
       },
       "Locked": false,
       "Grid": true,
@@ -20290,22 +19876,22 @@
     {
       "Name": "Deck",
       "Transform": {
-        "posX": -21.29769,
-        "posY": 1.05810452,
-        "posZ": -5.294445,
-        "rotX": 8.206424E-09,
-        "rotY": 180.000229,
-        "rotZ": -4.224686E-08,
+        "posX": -21.2976952,
+        "posY": 1.05810463,
+        "posZ": -5.29444361,
+        "rotX": -7.076829E-09,
+        "rotY": 180.000458,
+        "rotZ": 1.22014569E-07,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "",
+      "Nickname": "Occupations I-Deck (4+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.71325475,
-        "g": 0.71325475,
-        "b": 0.71325475
+        "r": 0.7133483,
+        "g": 0.7133483,
+        "b": 0.7133483
       },
       "Locked": false,
       "Grid": true,
@@ -20936,6 +20522,873 @@
         }
       ],
       "GUID": "e4d037"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -16.94229,
+        "posY": 2.711135,
+        "posZ": 5.61224127,
+        "rotX": 0.0,
+        "rotY": 0.03694247,
+        "rotZ": 0.0,
+        "scaleX": 2.44381428,
+        "scaleY": 3.5,
+        "scaleZ": 4.24247169
+      },
+      "Nickname": "Occupation Shuffling Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "",
+      "GUID": "d46db2"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -20.1526,
+        "posY": 2.711135,
+        "posZ": 5.564554,
+        "rotX": 0.0,
+        "rotY": 93.24452,
+        "rotZ": 0.0,
+        "scaleX": 4.11782,
+        "scaleY": 3.5,
+        "scaleZ": 2.49982667
+      },
+      "Nickname": "Minor Improvement Shuffling Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "",
+      "GUID": "286fa6"
+    },
+    {
+      "Name": "Custom_Model",
+      "Transform": {
+        "posX": -26.00048,
+        "posY": 0.9782737,
+        "posZ": 4.17220163,
+        "rotX": 4.33235664E-06,
+        "rotY": 179.980911,
+        "rotZ": 180.0,
+        "scaleX": 0.5,
+        "scaleY": 0.5,
+        "scaleZ": 0.5
+      },
+      "Nickname": "5 Players Token",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.578597546,
+        "g": 0.99999994,
+        "b": 0.997976959
+      },
+      "Locked": false,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "CustomMesh": {
+        "MeshURL": "http://pastebin.com/raw.php?i=00YWZ28Y",
+        "DiffuseURL": "",
+        "NormalURL": "",
+        "ColliderURL": "",
+        "Convex": true,
+        "MaterialIndex": 1,
+        "TypeIndex": 0,
+        "CastShadows": true
+      },
+      "LuaScript": "",
+      "GUID": "3eb5e5"
+    },
+    {
+      "Name": "Custom_Model",
+      "Transform": {
+        "posX": -27.3086948,
+        "posY": 0.9782737,
+        "posZ": 4.19544935,
+        "rotX": -2.412592E-06,
+        "rotY": 179.992477,
+        "rotZ": 180.000015,
+        "scaleX": 0.5,
+        "scaleY": 0.5,
+        "scaleZ": 0.5
+      },
+      "Nickname": "4 Players Token",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.470769048,
+        "g": 0.99999994,
+        "b": 0.5884671
+      },
+      "Locked": false,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "CustomMesh": {
+        "MeshURL": "http://pastebin.com/raw.php?i=00YWZ28Y",
+        "DiffuseURL": "",
+        "NormalURL": "",
+        "ColliderURL": "",
+        "Convex": true,
+        "MaterialIndex": 1,
+        "TypeIndex": 0,
+        "CastShadows": true
+      },
+      "LuaScript": "",
+      "GUID": "d5b306"
+    },
+    {
+      "Name": "Custom_Model",
+      "Transform": {
+        "posX": -28.6088448,
+        "posY": 0.9782737,
+        "posZ": 4.19759464,
+        "rotX": 3.20680351E-06,
+        "rotY": 179.9867,
+        "rotZ": 180.0,
+        "scaleX": 0.5,
+        "scaleY": 0.5,
+        "scaleZ": 0.5
+      },
+      "Nickname": "3 Players Token",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.6030082,
+        "g": 0.99999994,
+        "b": 0.345289826
+      },
+      "Locked": false,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "CustomMesh": {
+        "MeshURL": "http://pastebin.com/raw.php?i=00YWZ28Y",
+        "DiffuseURL": "",
+        "NormalURL": "",
+        "ColliderURL": "",
+        "Convex": true,
+        "MaterialIndex": 1,
+        "TypeIndex": 0,
+        "CastShadows": true
+      },
+      "LuaScript": "",
+      "GUID": "feb2ff"
+    },
+    {
+      "Name": "Custom_Model",
+      "Transform": {
+        "posX": -29.9273014,
+        "posY": 0.978273749,
+        "posZ": 4.16962433,
+        "rotX": -3.4155637E-06,
+        "rotY": 179.986267,
+        "rotZ": 180.000015,
+        "scaleX": 0.5,
+        "scaleY": 0.5,
+        "scaleZ": 0.5
+      },
+      "Nickname": "2 Players Token",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.976044059,
+        "g": 0.99999994,
+        "b": 0.345289826
+      },
+      "Locked": false,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "CustomMesh": {
+        "MeshURL": "http://pastebin.com/raw.php?i=00YWZ28Y",
+        "DiffuseURL": "",
+        "NormalURL": "",
+        "ColliderURL": "",
+        "Convex": true,
+        "MaterialIndex": 1,
+        "TypeIndex": 0,
+        "CastShadows": true
+      },
+      "LuaScript": "",
+      "GUID": "b51ba9"
+    },
+    {
+      "Name": "Custom_Model",
+      "Transform": {
+        "posX": -31.2056637,
+        "posY": 0.978273749,
+        "posZ": 4.15214157,
+        "rotX": -4.932087E-06,
+        "rotY": 179.979,
+        "rotZ": 180.0,
+        "scaleX": 0.5,
+        "scaleY": 0.5,
+        "scaleZ": 0.5
+      },
+      "Nickname": "1 Player Token",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.701898634,
+        "b": 0.50213623
+      },
+      "Locked": false,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "CustomMesh": {
+        "MeshURL": "http://pastebin.com/raw.php?i=00YWZ28Y",
+        "DiffuseURL": "",
+        "NormalURL": "",
+        "ColliderURL": "",
+        "Convex": true,
+        "MaterialIndex": 1,
+        "TypeIndex": 0,
+        "CastShadows": true
+      },
+      "LuaScript": "",
+      "GUID": "f8d86b"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -28.7918243,
+        "posY": 2.711135,
+        "posZ": 8.481697,
+        "rotX": 0.0,
+        "rotY": 359.905823,
+        "rotZ": 0.0,
+        "scaleX": 6.351749,
+        "scaleY": 3.5,
+        "scaleZ": 5.87499332
+      },
+      "Nickname": "Game settings",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "--[[ Helpers ]]\r\n\r\nfunction table.contains(table, element)\r\n    for _, value in pairs(table) do\r\n        if value == element then\r\n            return true\r\n        end\r\n    end\r\n    return false\r\nend\r\n\r\nfunction table.removeByValue(table, value)\r\n    found = false\r\n    for tableKey, tableValue in pairs(table) do\r\n        if tableValue == value then\r\n            table[tableKey] = nil\r\n            found = true\r\n        end\r\n    end\r\n    return found\r\nend\r\n\r\nfunction table.getKey(table, value)\r\n    for tableKey, tableValue in pairs(table) do\r\n        if (tableValue == value) then\r\n            return tableKey\r\n        end\r\n    end\r\n    return nil\r\nend\r\n\r\nfunction table.toString(table, separator)\r\n    result = \"\"\r\n    for _, value in pairs(table) do\r\n        if (string.len(result) == 0) then\r\n            result = result .. value\r\n        else\r\n            result = result .. separator .. value\r\n        end\r\n    end\r\n    return result\r\nend\r\n\r\n--[[ Globals for this script ]]\r\n\r\nobjectGUIDsInTheZone = {}\r\nplayerCount = 0\r\ndeckTypes = {}\r\nplayerCountTokenGUIDs = { \"f8d86b\", \"b51ba9\", \"feb2ff\", \"d5b306\", \"3eb5e5\" }\r\nstartGameTokenGUID = \"201379\"\r\nkDeckTokenGUID = \"e1662e\"\r\neDeckTokenGUID = \"9752bc\"\r\niDeckTokenGUID = \"ae31c5\"\r\n\r\n--[[ Private functions ]]\r\n\r\nfunction updateGameSettings()\r\n    playerCount = 0\r\n    startGame = false\r\n    deckTypes = {}\r\n    for _, objectGUID in pairs(objectGUIDsInTheZone) do\r\n        if (table.contains(playerCountTokenGUIDs, objectGUID)) then\r\n            updatePlayerCount(objectGUID)\r\n        elseif (objectGUID == kDeckTokenGUID) then\r\n            table.insert(deckTypes, \"K\")\r\n        elseif (objectGUID == eDeckTokenGUID) then\r\n            table.insert(deckTypes, \"E\")\r\n        elseif (objectGUID == iDeckTokenGUID) then\r\n            table.insert(deckTypes, \"I\")\r\n        elseif (objectGUID == startGameTokenGUID) then\r\n            startGame = true\r\n        end\r\n    end\r\n    \r\n    print(\"Adjusting player count to \" .. playerCount)\r\n    setGlobalScriptVar(\"playerCount\", playerCount)\r\n    \r\n    print(\"Adjusting deck types to '\" .. table.toString(deckTypes, \",\") .. \"'\")\r\n    -- This is broken so we need to use other function at the moment\r\n    -- setGlobalScriptTable(deckTypes, \"deckTypes\")\r\n    callLuaFunctionInOtherScriptWithParams(nil, \"setDeckTypes\", deckTypes)\r\n    \r\n    if (startGame and not getGlobalScriptVar(\"gameStarted\")) then\r\n        print(\"Starting game\")\r\n        callLuaFunctionInOtherScript(nil, \"initializeBoard\")\r\n    end\r\nend\r\n\r\n\r\nfunction updatePlayerCount(objectGUID)\r\n    count = table.getKey(playerCountTokenGUIDs, objectGUID)\r\n    if (count ~= nil and count > playerCount) then\r\n        playerCount = count\r\n    end\r\nend\r\n\r\n--[[ Called when an object enters a scripting zone. ]]\r\nfunction onObjectEnterScriptingZone(zone, object)\r\n    objectGUID = object.getGUID()\r\n\r\n    if (zone.getGUID() ~= self.getGUID() or\r\n        table.contains(objectGUIDsInTheZone, objectGUID)) then\r\n        return\r\n    end\r\n\r\n    print(\"Object \" .. object.getName() .. \" type \" .. object.name .. \" GUID \" .. objectGUID .. \" entered Game Settings scripting zone\")\r\n    \r\n    table.insert(objectGUIDsInTheZone, objectGUID)\r\n    updateGameSettings()\r\nend\r\n\r\n--[[ Called when an object leaves a scripting zone. ]]\r\nfunction onObjectLeaveScriptingZone(zone, object)\r\n    objectGUID = object.getGUID()\r\n\r\n    if (zone.getGUID() ~= self.getGUID() or\r\n        not table.contains(objectGUIDsInTheZone, objectGUID)) then\r\n        return\r\n    end\r\n    \r\n    print(\"Object \" .. object.getName() .. \" type \" .. object.name .. \" GUID \" .. objectGUID .. \" left Game Settings scripting zone\")\r\n    \r\n    if (not table.removeByValue(objectGUIDsInTheZone, objectGUID)) then\r\n        print(\"Object \" .. object.getName() .. \" GUID \" .. objectGUID .. \" was not in object GUIDs for this zone\")\r\n        return\r\n    end\r\n\r\n    updateGameSettings()\r\nend\r\n\r\n--[[ Called when a game finishes loading. ]]\r\nfunction onload()\r\n    local playerCountButtonParameters = {}\r\n    playerCountButtonParameters.click_function = \"dummy\"\r\n    playerCountButtonParameters.label = \"\"\r\n    playerCountButtonParameters.function_owner = nil\r\n    playerCountButtonParameters.position = {0, -0.5, 0}\r\n    playerCountButtonParameters.rotation = {180.0, 180.0, 0}\r\n    playerCountButtonParameters.width = 0\r\n    playerCountButtonParameters.height = 0\r\n    playerCountButtonParameters.font_size = 180\r\n    \r\n    for i=1, 5, 1 do\r\n        playerCountButtonParameters.label = (i .. ' Players')\r\n        getObjectFromGUID(playerCountTokenGUIDs[i]).createButton(playerCountButtonParameters)\r\n    end\r\n    \r\n    playerCountButtonParameters.label = \"Start\\nGame\"\r\n    getObjectFromGUID(startGameTokenGUID).createButton(playerCountButtonParameters)\r\n\r\n    playerCountButtonParameters.label = \"K\\nDeck\"\r\n    getObjectFromGUID(kDeckTokenGUID).createButton(playerCountButtonParameters)\r\n\r\n    playerCountButtonParameters.label = \"E\\nDeck\"\r\n    getObjectFromGUID(eDeckTokenGUID).createButton(playerCountButtonParameters)\r\n\r\n    playerCountButtonParameters.label = \"I\\nDeck\"\r\n    getObjectFromGUID(iDeckTokenGUID).createButton(playerCountButtonParameters)\r\nend\r\n",
+      "GUID": "be4eaa"
+    },
+    {
+      "Name": "Deck",
+      "Transform": {
+        "posX": -18.98252,
+        "posY": 1.02957416,
+        "posZ": -9.154741,
+        "rotX": -6.58551E-07,
+        "rotY": 180.002228,
+        "rotZ": -8.149867E-07,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "Action cards for 4 player game",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.713363945,
+        "g": 0.713363945,
+        "b": 0.713363945
+      },
+      "Locked": false,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "SidewaysCard": false,
+      "DeckIDs": [
+        1815,
+        1811,
+        1809,
+        1807,
+        1805,
+        1803
+      ],
+      "CustomDeck": {
+        "18": {
+          "FaceURL": "https://www.dropbox.com/s/k9aiyh7hvfb23b4/Action%20Cards%20A.jpg?dl=1",
+          "BackURL": "https://www.dropbox.com/s/2p6sjf2x5j0zkxg/Action%20Cards%20%28Family%20A%29.jpg?dl=1{Unique}",
+          "NumWidth": 10,
+          "NumHeight": 7,
+          "BackIsHidden": false
+        }
+      },
+      "LuaScript": "",
+      "ContainedObjects": [
+        {
+          "Name": "Card",
+          "Transform": {
+            "posX": 53.35008,
+            "posY": 2.498969,
+            "posZ": -14.0721512,
+            "rotX": 3.577682,
+            "rotY": 179.878036,
+            "rotZ": 356.678436,
+            "scaleX": 1.0,
+            "scaleY": 1.0,
+            "scaleZ": 1.0
+          },
+          "Nickname": "",
+          "Description": "",
+          "ColorDiffuse": {
+            "r": 0.713239133,
+            "g": 0.713239133,
+            "b": 0.713239133
+          },
+          "Locked": false,
+          "Grid": true,
+          "Snap": true,
+          "Autoraise": true,
+          "Sticky": true,
+          "CardID": 1815,
+          "SidewaysCard": false,
+          "LuaScript": "",
+          "ContainedObjects": [],
+          "GUID": ""
+        },
+        {
+          "Name": "Card",
+          "Transform": {
+            "posX": 53.35008,
+            "posY": 2.498969,
+            "posZ": -14.0721512,
+            "rotX": 3.577682,
+            "rotY": 179.878036,
+            "rotZ": 356.678436,
+            "scaleX": 1.0,
+            "scaleY": 1.0,
+            "scaleZ": 1.0
+          },
+          "Nickname": "",
+          "Description": "",
+          "ColorDiffuse": {
+            "r": 0.713239133,
+            "g": 0.713239133,
+            "b": 0.713239133
+          },
+          "Locked": false,
+          "Grid": true,
+          "Snap": true,
+          "Autoraise": true,
+          "Sticky": true,
+          "CardID": 1811,
+          "SidewaysCard": false,
+          "LuaScript": "",
+          "ContainedObjects": [],
+          "GUID": ""
+        },
+        {
+          "Name": "Card",
+          "Transform": {
+            "posX": 53.35008,
+            "posY": 2.498969,
+            "posZ": -14.0721512,
+            "rotX": 3.577682,
+            "rotY": 179.878036,
+            "rotZ": 356.678436,
+            "scaleX": 1.0,
+            "scaleY": 1.0,
+            "scaleZ": 1.0
+          },
+          "Nickname": "",
+          "Description": "",
+          "ColorDiffuse": {
+            "r": 0.713239133,
+            "g": 0.713239133,
+            "b": 0.713239133
+          },
+          "Locked": false,
+          "Grid": true,
+          "Snap": true,
+          "Autoraise": true,
+          "Sticky": true,
+          "CardID": 1809,
+          "SidewaysCard": false,
+          "LuaScript": "",
+          "ContainedObjects": [],
+          "GUID": ""
+        },
+        {
+          "Name": "Card",
+          "Transform": {
+            "posX": 53.35008,
+            "posY": 2.498969,
+            "posZ": -14.0721512,
+            "rotX": 3.577682,
+            "rotY": 179.878036,
+            "rotZ": 356.678436,
+            "scaleX": 1.0,
+            "scaleY": 1.0,
+            "scaleZ": 1.0
+          },
+          "Nickname": "",
+          "Description": "",
+          "ColorDiffuse": {
+            "r": 0.713239133,
+            "g": 0.713239133,
+            "b": 0.713239133
+          },
+          "Locked": false,
+          "Grid": true,
+          "Snap": true,
+          "Autoraise": true,
+          "Sticky": true,
+          "CardID": 1807,
+          "SidewaysCard": false,
+          "LuaScript": "",
+          "ContainedObjects": [],
+          "GUID": ""
+        },
+        {
+          "Name": "Card",
+          "Transform": {
+            "posX": 53.35008,
+            "posY": 2.498969,
+            "posZ": -14.0721512,
+            "rotX": 3.577682,
+            "rotY": 179.878036,
+            "rotZ": 356.678436,
+            "scaleX": 1.0,
+            "scaleY": 1.0,
+            "scaleZ": 1.0
+          },
+          "Nickname": "",
+          "Description": "",
+          "ColorDiffuse": {
+            "r": 0.713239133,
+            "g": 0.713239133,
+            "b": 0.713239133
+          },
+          "Locked": false,
+          "Grid": true,
+          "Snap": true,
+          "Autoraise": true,
+          "Sticky": true,
+          "CardID": 1805,
+          "SidewaysCard": false,
+          "LuaScript": "",
+          "ContainedObjects": [],
+          "GUID": ""
+        },
+        {
+          "Name": "Card",
+          "Transform": {
+            "posX": 53.35008,
+            "posY": 2.498969,
+            "posZ": -14.0721512,
+            "rotX": 3.577682,
+            "rotY": 179.878036,
+            "rotZ": 356.678436,
+            "scaleX": 1.0,
+            "scaleY": 1.0,
+            "scaleZ": 1.0
+          },
+          "Nickname": "",
+          "Description": "",
+          "ColorDiffuse": {
+            "r": 0.713239133,
+            "g": 0.713239133,
+            "b": 0.713239133
+          },
+          "Locked": false,
+          "Grid": true,
+          "Snap": true,
+          "Autoraise": true,
+          "Sticky": true,
+          "CardID": 1803,
+          "SidewaysCard": false,
+          "LuaScript": "",
+          "ContainedObjects": [],
+          "GUID": ""
+        }
+      ],
+      "GUID": "2dd967"
+    },
+    {
+      "Name": "Deck",
+      "Transform": {
+        "posX": -21.1899261,
+        "posY": 1.02674639,
+        "posZ": -9.113772,
+        "rotX": -4.67734225E-08,
+        "rotY": 179.99704,
+        "rotZ": 7.261595E-08,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "Action cards for 3 player game",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.713363945,
+        "g": 0.713363945,
+        "b": 0.713363945
+      },
+      "Locked": false,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "SidewaysCard": false,
+      "DeckIDs": [
+        1710,
+        1706,
+        1701,
+        1700
+      ],
+      "CustomDeck": {
+        "17": {
+          "FaceURL": "https://www.dropbox.com/s/k9aiyh7hvfb23b4/Action%20Cards%20A.jpg?dl=1",
+          "BackURL": "https://www.dropbox.com/s/2p6sjf2x5j0zkxg/Action%20Cards%20%28Family%20A%29.jpg?dl=1{Unique}",
+          "NumWidth": 10,
+          "NumHeight": 7,
+          "BackIsHidden": false
+        }
+      },
+      "LuaScript": "",
+      "ContainedObjects": [
+        {
+          "Name": "Card",
+          "Transform": {
+            "posX": 53.35008,
+            "posY": 2.498969,
+            "posZ": -14.0721512,
+            "rotX": 5.01264429,
+            "rotY": 180.0483,
+            "rotZ": 0.7820306,
+            "scaleX": 1.0,
+            "scaleY": 1.0,
+            "scaleZ": 1.0
+          },
+          "Nickname": "",
+          "Description": "",
+          "ColorDiffuse": {
+            "r": 0.713239133,
+            "g": 0.713239133,
+            "b": 0.713239133
+          },
+          "Locked": false,
+          "Grid": true,
+          "Snap": true,
+          "Autoraise": true,
+          "Sticky": true,
+          "CardID": 1710,
+          "SidewaysCard": false,
+          "LuaScript": "",
+          "ContainedObjects": [],
+          "GUID": ""
+        },
+        {
+          "Name": "Card",
+          "Transform": {
+            "posX": 53.35008,
+            "posY": 2.498969,
+            "posZ": -14.0721512,
+            "rotX": 5.01264429,
+            "rotY": 180.0483,
+            "rotZ": 0.7820306,
+            "scaleX": 1.0,
+            "scaleY": 1.0,
+            "scaleZ": 1.0
+          },
+          "Nickname": "",
+          "Description": "",
+          "ColorDiffuse": {
+            "r": 0.713239133,
+            "g": 0.713239133,
+            "b": 0.713239133
+          },
+          "Locked": false,
+          "Grid": true,
+          "Snap": true,
+          "Autoraise": true,
+          "Sticky": true,
+          "CardID": 1706,
+          "SidewaysCard": false,
+          "LuaScript": "",
+          "ContainedObjects": [],
+          "GUID": ""
+        },
+        {
+          "Name": "Card",
+          "Transform": {
+            "posX": 53.35008,
+            "posY": 2.498969,
+            "posZ": -14.0721512,
+            "rotX": 5.01264429,
+            "rotY": 180.0483,
+            "rotZ": 0.7820306,
+            "scaleX": 1.0,
+            "scaleY": 1.0,
+            "scaleZ": 1.0
+          },
+          "Nickname": "",
+          "Description": "",
+          "ColorDiffuse": {
+            "r": 0.713239133,
+            "g": 0.713239133,
+            "b": 0.713239133
+          },
+          "Locked": false,
+          "Grid": true,
+          "Snap": true,
+          "Autoraise": true,
+          "Sticky": true,
+          "CardID": 1701,
+          "SidewaysCard": false,
+          "LuaScript": "",
+          "ContainedObjects": [],
+          "GUID": ""
+        },
+        {
+          "Name": "Card",
+          "Transform": {
+            "posX": 53.35008,
+            "posY": 2.498969,
+            "posZ": -14.0721512,
+            "rotX": 5.01264429,
+            "rotY": 180.0483,
+            "rotZ": 0.7820306,
+            "scaleX": 1.0,
+            "scaleY": 1.0,
+            "scaleZ": 1.0
+          },
+          "Nickname": "",
+          "Description": "",
+          "ColorDiffuse": {
+            "r": 0.713239133,
+            "g": 0.713239133,
+            "b": 0.713239133
+          },
+          "Locked": false,
+          "Grid": true,
+          "Snap": true,
+          "Autoraise": true,
+          "Sticky": true,
+          "CardID": 1700,
+          "SidewaysCard": false,
+          "LuaScript": "",
+          "ContainedObjects": [],
+          "GUID": ""
+        }
+      ],
+      "GUID": "4bdd23"
+    },
+    {
+      "Name": "Custom_Model",
+      "Transform": {
+        "posX": -33.86362,
+        "posY": 0.978273749,
+        "posZ": 11.01834,
+        "rotX": -1.27996266E-10,
+        "rotY": 179.985138,
+        "rotZ": 180.0,
+        "scaleX": 0.5,
+        "scaleY": 0.5,
+        "scaleZ": 0.5
+      },
+      "Nickname": "Start Game",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.997255147,
+        "g": 0.99999994,
+        "b": 0.9974807
+      },
+      "Locked": false,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "CustomMesh": {
+        "MeshURL": "http://pastebin.com/raw.php?i=00YWZ28Y",
+        "DiffuseURL": "",
+        "NormalURL": "",
+        "ColliderURL": "",
+        "Convex": true,
+        "MaterialIndex": 1,
+        "TypeIndex": 0,
+        "CastShadows": true
+      },
+      "LuaScript": "",
+      "GUID": "201379"
+    },
+    {
+      "Name": "Custom_Model",
+      "Transform": {
+        "posX": -25.957262,
+        "posY": 0.978273749,
+        "posZ": 2.57538366,
+        "rotX": -1.45016111E-06,
+        "rotY": 179.981522,
+        "rotZ": 180.0,
+        "scaleX": 0.5,
+        "scaleY": 0.5,
+        "scaleZ": 0.5
+      },
+      "Nickname": "K-Deck",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.495959878,
+        "g": 0.1862126,
+        "b": 0.0
+      },
+      "Locked": false,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "CustomMesh": {
+        "MeshURL": "http://pastebin.com/raw.php?i=00YWZ28Y",
+        "DiffuseURL": "",
+        "NormalURL": "",
+        "ColliderURL": "",
+        "Convex": true,
+        "MaterialIndex": 1,
+        "TypeIndex": 0,
+        "CastShadows": true
+      },
+      "LuaScript": "",
+      "GUID": "e1662e"
+    },
+    {
+      "Name": "Custom_Model",
+      "Transform": {
+        "posX": -27.2750359,
+        "posY": 0.9782737,
+        "posZ": 2.59121966,
+        "rotX": 3.63911272E-06,
+        "rotY": 180.001175,
+        "rotZ": 180.0,
+        "scaleX": 0.5,
+        "scaleY": 0.5,
+        "scaleZ": 0.5
+      },
+      "Nickname": "E-Deck",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.0,
+        "g": 0.2627997,
+        "b": 0.0
+      },
+      "Locked": false,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "CustomMesh": {
+        "MeshURL": "http://pastebin.com/raw.php?i=00YWZ28Y",
+        "DiffuseURL": "",
+        "NormalURL": "",
+        "ColliderURL": "",
+        "Convex": true,
+        "MaterialIndex": 1,
+        "TypeIndex": 0,
+        "CastShadows": true
+      },
+      "LuaScript": "",
+      "GUID": "9752bc"
+    },
+    {
+      "Name": "Custom_Model",
+      "Transform": {
+        "posX": -28.6211529,
+        "posY": 0.97827363,
+        "posZ": 2.62560964,
+        "rotX": -1.49800064E-06,
+        "rotY": 179.985825,
+        "rotZ": 180.0,
+        "scaleX": 0.5,
+        "scaleY": 0.5,
+        "scaleZ": 0.5
+      },
+      "Nickname": "I-Deck",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.449532777,
+        "g": 0.6274935,
+        "b": 0.0
+      },
+      "Locked": false,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "CustomMesh": {
+        "MeshURL": "http://pastebin.com/raw.php?i=00YWZ28Y",
+        "DiffuseURL": "",
+        "NormalURL": "",
+        "ColliderURL": "",
+        "Convex": true,
+        "MaterialIndex": 1,
+        "TypeIndex": 0,
+        "CastShadows": true
+      },
+      "LuaScript": "",
+      "GUID": "ae31c5"
+    },
+    {
+      "Name": "3DText",
+      "Transform": {
+        "posX": -28.7283859,
+        "posY": 0.9611351,
+        "posZ": 10.7133236,
+        "rotX": 90.0,
+        "rotY": 0.905407965,
+        "rotZ": 0.0,
+        "scaleX": 1.0,
+        "scaleY": 1.0,
+        "scaleZ": 1.0
+      },
+      "Nickname": "",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "Text": {
+        "Text": "Drop \ngame \nsettings \ntokens \nhere",
+        "colorstate": {
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0
+        },
+        "fontSize": 64
+      },
+      "LuaScript": "",
+      "GUID": "4303c4"
     }
   ],
   "TabStates": {
