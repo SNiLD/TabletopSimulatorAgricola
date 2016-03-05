@@ -33,6 +33,17 @@ end
 gameStarted = false
 playerCount = 0
 deckTypes = {}
+playerColors = {}
+actionsRemaining = {}
+playerFarmScriptingZoneGUIDs = { White = "5f165b", Red = "f1ea9d", Green = "baae38", Blue = "f12186", Purple = "8e8f24" }
+workerGUIDs =
+{
+    White = { "982e0c", "1d658c", "91230a", "339556", "8acc12" },
+    Red = { "f5f9c6", "3adf43", "8c1ca6", "aed233", "e7f696" },
+    Green = { "a8f720", "306232", "e3babc", "b57c85", "758634" },
+    Blue = { "cc5517", "d8d05d", "6b18da", "7c565a", "35d880" },
+    Purple = { "317185", "1da0ea", "96be86", "8898f4", "c1abc2" }
+}
 stage1CardDeckGUID = "77c9f7"
 stage2CardDeckGUID = "ac1369"
 stage3CardDeckGUID = "ceb91a"
@@ -342,39 +353,105 @@ function initializeWorkPhase()
 end
 
 
-function dealOccupations(object)
-    print("Shuffling occupations from deck " .. object.getName() .. " GUID " .. object.getGUID())
-    
-    object.shuffle()
-
-    print("Dealing 7 occupations to each player")
-    object.dealToAll(7)
+function setActionsRemaining(color, count)
+    actionsRemaining[color] = count
 end
 
 
-function dealMinorImprovements(object)
-    print("Shuffling minor improvements from deck " .. object.getName() .. " GUID " .. object.getGUID())
-    
-    object.shuffle()
+function isEndOfRound()
+    if (actionsRemaining == nil or next(actionsRemaining) == nil) then
+        return true
+    end
 
-    print("Dealing 7 minor improvements to each player")
-    object.dealToAll(7)
+    for color, actions in pairs(actionsRemaining) do
+        if (actions ~= nil and actions > 0) then
+            print("Atleast player " .. color .. " still has " .. actions .. " actions")
+            return false
+        end
+    end
+    
+    print("No player has turns remaining")
+    
+    return true
+end
+
+
+function startRound()
+end
+
+
+function endRound()
+end
+
+
+function addAction(color)
+    actionsRemaining[color] = actionsRemaining[color] + 1
+    print("Adding action to player " .. color .. " player now has " .. actionsRemaining[color] .. " actions left")
+end
+
+
+function removeAction(color)
+    actionsRemaining[color] = actionsRemaining[color] - 1
+    print("Removing action from player " .. color .. " player now has " .. actionsRemaining[color] .. " actions left")
+end
+
+
+function getActions(color)
+    count = 0
+    farmGUID = playerFarmScriptingZoneGUIDs[color]
+    farmZone = getObjectFromGUID(farmGUID)
+    farmWorkerGUIDs = workerGUIDs[color]
+    
+    for _, object in pairs(farmZone.getObjects()) do
+        if (table.contains(farmWorkerGUIDs, object.getGUID())) then
+            count = count + 1
+        end
+    end
+    
+    return count
+end
+
+
+function updateActions()
+    actionsRemaining = {}
+    players = getSeatedPlayers()
+    print("Updating remaining actions for " .. #players .. " players")
+    for _, color in pairs(players) do
+        actionsRemaining[color] = getActions(color)
+    end
+    
+    for color, actions in pairs(actionsRemaining) do
+        print("Player " .. color .. " has " .. actions .. " actions remaining")
+    end
 end
 
 
 --[[ Even hooks ]]
 
 function onObjectEnterScriptingZone(zone, object)
-    print("Object " .. object.getName() .. " type " .. object.name .. " GUID " .. object.getGUID() .. " entered Zone " .. zone.getName() .. " GUID " .. zone.getGUID())
-    if (zone.getGUID() == occupationShufflingZoneGUID and (object.name == "Deck" or object.name == "DeckCustom")) then
-        dealOccupations(object)
-    elseif (zone.getGUID() == minorImprovementShufflingZoneGUID and (object.name == "Deck" or object.name == "DeckCustom")) then
-        dealMinorImprovements(object)
+    for color, zoneGUID in pairs(playerFarmScriptingZoneGUIDs) do
+        if (zoneGUID == zone.getGUID()) then
+            for _, workerGUID in pairs(workerGUIDs[color]) do
+                if (workerGUID == object.getGUID()) then
+                    addAction(color)
+                    return
+                end
+            end
+        end
     end
 end
 
 function onObjectLeaveScriptingZone(zone, object)
-    print("Object " .. object.getName() .. " type " .. object.name .. " GUID " .. object.getGUID() .. " left Zone " .. zone.getName() .. " GUID " .. zone.getGUID())
+    for color, zoneGUID in pairs(playerFarmScriptingZoneGUIDs) do
+        if (zoneGUID == zone.getGUID()) then
+            for _, workerGUID in pairs(workerGUIDs[color]) do
+                if (workerGUID == object.getGUID()) then
+                    removeAction(color)
+                    return
+                end
+            end
+        end
+    end
 end
 
 
@@ -382,4 +459,15 @@ end
 -- end
 
 function onload()
+    updateActions()
+end
+
+function onPlayerTurnEnd(color)
+    if (isEndOfRound()) then
+        endRound()
+    end
+end
+
+function onPlayerChangedColor(color)
+    updateActions()
 end
