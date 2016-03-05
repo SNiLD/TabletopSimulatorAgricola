@@ -73,22 +73,42 @@ end
 --[[ Private functions ]]
 
 
-function initializeGameStage(stageCardDeckGUID, positions)
+function dealCards(deck, rotation, positions)
     local parameters = {}
     parameters.position = {}
-    parameters.rotation = {0.0, 180.0, 180.0}
+    parameters.rotation = rotation
     parameters.callback = ""
     parameters.params = {}
     
+    for _, position in pairs(positions) do
+        parameters.position = position
+        card = deck.takeObject(parameters)
+    end
+end
+
+
+function initializeGameStage(stageCardDeckGUID, positions)
     stageCardDeck = getObjectFromGUID(stageCardDeckGUID)
     
     print("Shuffling " .. stageCardDeck.getName() .. " cards")
     stageCardDeck.shuffle()
     
-    for _, position in pairs(positions) do
-        parameters.position = position
-        stageCardDeck.takeObject(parameters)        
-    end
+    dealCards(stageCardDeck, {0.0, 180.0, 180.0}, positions)
+end
+
+
+function initializeFamilyBoard()
+    mainBoard = getObjectFromGUID("7db9f8")
+    boardBag = getObjectFromGUID("a11e39")
+    local parameters = {}
+    parameters.position = getObjectPositionTable(mainBoard, nil)
+    parameters.rotation = {0.0, 180.0, 0.0}
+    parameters.callback = ""
+    parameters.params = {}
+    mainBoard.unlock()
+    mainBoard.setPositionSmooth(getObjectPositionTable(boardBag, {0.0, 1.5, 0.0}))
+    familyBoard = boardBag.takeObject(parameters)
+    familyBoard.lock()
 end
 
 
@@ -98,63 +118,90 @@ function initializeGameStageCards()
         {
             {-2.63777614, 1.30030215, 0.194500551},
             {0.397731841, 1.26712489, 0.03501895},
-            {0.316840023, 1.2755394, -4.122939}
+            {0.316840023, 1.2755394, -4.122939},
+            {0.418771684, 1.28196931, -8.297897}
         })
     initializeGameStage(
         stage2CardDeckGUID,
         {
             {3.30984449, 1.231528, 0.00103998382},
-            {3.24591732, 1.23985708, -4.213084}
+            {3.24591732, 1.23985708, -4.213084},
+            {3.4350183, 1.24877107, -8.049803}
         })
     initializeGameStage(
         stage3CardDeckGUID,
         {
-            {7.650797, 1.205321, -3.60009027}
+            {7.650797, 1.205321, -3.60009027},
+            {7.55944, 1.2157166, -8.03801}
         })
     initializeGameStage(
         stage4CardDeckGUID,
         {
-            {10.4956465, 1.205321, -3.554801}
+            {10.4956465, 1.205321, -3.554801},
+            {10.5654831, 1.2157166, -8.035828}
         })
     initializeGameStage(
         stage5CardDeckGUID,
         {
-            {13.5662766, 1.20532107, -3.49873352}
+            {13.5662766, 1.20532107, -3.49873352},
+            {13.5698023, 1.21571648, -7.92842054}
         })
 end
 
 
-function initializeActionCards(playerCount)
-    print("Initializing player cards for " .. playerCount .. " players")
+function initializeActionCards(playerCount, isFamilyGame)
+    print("Initializing player cards for " .. playerCount .. " players family mode " .. tostring(isFamilyGame))
     actionCards5Players = getObjectFromGUID("590540")
     actionCards4Players = getObjectFromGUID("2dd967")
     actionCards3Players = getObjectFromGUID("4bdd23")
     actionCardsBag = getObjectFromGUID("87e8b1")
     actionCardsBagPosition = getObjectPositionTable(actionCardsBag, {0.0, 1.5, 0.0})
+    rotation = {0.0, 180.0, 0.0}
+    
+    if (isFamilyGame) then
+        rotation[3] = 180.0
+    end
     
     if (playerCount == 5) then
         actionCards4Players.setPositionSmooth(actionCardsBagPosition)
         actionCards3Players.setPositionSmooth(actionCardsBagPosition)
-        
-        actionCards5Players.setPosition({-13.1250954, 1.35851014, -3.91666961})
-        
-        local parameters = {}
-        parameters.position = {-13.1315432, 1.35851169,-8.331627}
-        parameters.rotation = {0.0, 180.0, 0.0}
-        parameters.callback = ""
-        parameters.params = {}
-        
-        actionCards5Players.takeObject(parameters)
-        parameters.position = {-10.2916288, 1.35850871, 0.2497616}
-        actionCards5Players.takeObject(parameters)
-        parameters.position = {-10.1748323, 1.35851026, -4.013337}
-        actionCards5Players.takeObject(parameters)
-        parameters.position = {-10.298852, 1.35851181, -8.452009}
-        actionCards5Players.takeObject(parameters)
-        parameters.position = {-13.19608, 1.35850859, 0.2789259}
-        actionCards5Players.takeObject(parameters)
+        dealCards(
+            actionCards5Players,
+            rotation,
+            {
+                {-13.1315432, 1.35851169,-8.331627},
+                {-10.2916288, 1.35850871, 0.2497616},
+                {-10.1748323, 1.35851026, -4.013337},
+                {-10.298852, 1.35851181, -8.452009},
+                {-13.19608, 1.35850859, 0.2789259},
+                {-13.1250954, 1.35851014, -3.91666961}
+            })
     elseif (playerCount == 4) then
+        actionCards5Players.setPositionSmooth(actionCardsBagPosition)
+        actionCards3Players.setPositionSmooth(actionCardsBagPosition)
+        dealCards(
+            actionCards4Players,
+            rotation,
+            {
+                {-13.2538042, 1.35851169, -8.345971},
+                {-10.3602352, 1.35850859, 0.282183915},
+                {-10.3508177, 1.35851014, -4.06672955},
+                {-10.3133535, 1.35851169, -8.395471},
+                {-13.2757206, 1.35850871, 0.223956347},
+                {-13.2007608, 1.35851014, -3.87375879}
+            })
     elseif (playerCount == 3) then
+        actionCards5Players.setPositionSmooth(actionCardsBagPosition)
+        actionCards4Players.setPositionSmooth(actionCardsBagPosition)
+        dealCards(
+            actionCards3Players,
+            rotation,
+            {
+                {-10.4203014, 1.35851014, -4.19282},
+                {-10.407362, 1.35851181, -8.453454},
+                {-13.1756124, 1.35851026, -4.16184473},
+                {-13.2102251, 1.35851169, -8.382444}
+            })
     elseif (playerCount == 2 or playerCount == 1) then
         actionCards5Players.setPositionSmooth(actionCardsBagPosition)
         actionCards4Players.setPositionSmooth(actionCardsBagPosition)
@@ -267,6 +314,7 @@ function initializeBoard()
     end
     
     gameStarted = true
+    isFamilyGame = false
     
     players = getSeatedPlayers()
     
@@ -276,8 +324,15 @@ function initializeBoard()
     end
 
     print("Initializing board for " .. playerCount .. " players with decks '" .. table.toString(deckTypes, ",") .. "'")
+    
+    if (next(deckTypes) == nil) then
+        print("No decks were chosen, using family rules")
+        isFamilyGame = true
+        initializeFamilyBoard()
+    end
+    
     initializeGameStageCards()
-    initializeActionCards(playerCount)
+    initializeActionCards(playerCount, isFamilyGame)
     initializeOccupations(playerCount, deckTypes)
     initializeMinorImprovements(deckTypes)
 end
