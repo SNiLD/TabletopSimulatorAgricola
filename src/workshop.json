@@ -1,14 +1,14 @@
 {
   "SaveName": "Agricola Scripting Workshop ",
   "GameMode": "Agricola",
-  "Date": "3/5/2016 3:31:20 PM",
+  "Date": "3/6/2016 11:28:51 AM",
   "Table": "Table_Custom",
   "TableURL": "http://images.cryhavok.org/d/14762-1/Black+Background+Wood+3+by+Freeman.jpg",
   "Sky": "Sky_Field",
   "Note": "",
   "Rules": "",
-  "PlayerTurn": "",
-  "LuaScript": "--[[ Helpers ]]\r\n\r\nfunction table.contains(table, element)\r\n  for _, value in pairs(table) do\r\n    if value == element then\r\n      return true\r\n    end\r\n  end\r\n  return false\r\nend\r\n\r\n\r\nfunction table.toString(table, separator)\r\n    result = \"\"\r\n    for _, value in pairs(table) do\r\n        if (string.len(result) == 0) then\r\n            result = result .. value\r\n        else\r\n            result = result .. separator .. value\r\n        end\r\n    end\r\n    return result\r\nend\r\n\r\n\r\nfunction dummy()\r\nend\r\n\r\n\r\n--[[ Globals ]]\r\n\r\n\r\ngameStarted = false\r\nplayerCount = 0\r\ndeckTypes = {}\r\nstage1CardDeckGUID = \"77c9f7\"\r\nstage2CardDeckGUID = \"ac1369\"\r\nstage3CardDeckGUID = \"ceb91a\"\r\nstage4CardDeckGUID = \"8f6c74\"\r\nstage5CardDeckGUID = \"d78dfb\"\r\nkDeckBagGUID = \"236391\"\r\neDeckBagGUID = \"5b947c\"\r\niDeckBagGUID = \"c4551b\"\r\noccupationDeckGUIDs = { \"5fd15d\", \"ba39bf\", \"61f6d6\", \"5c1922\", \"eec2e8\", \"1e6207\", \"997c19\", \"9879ec\", \"e4d037\" }\r\noccupationShufflingZoneGUID = \"d46db2\"\r\nminorImprovementDeckGUIDs = { \"fd9eea\", \"aaa166\", \"6de5b0\" }\r\nminorImprovementShufflingZoneGUID = \"286fa6\"\r\n\r\n\r\n--[[ These are hack functions because the API does not work correctly atm. ]]\r\n\r\nfunction getObjectPositionTable(object, adjustment)\r\n    local position = object.getPosition()\r\n    result = {}\r\n    positionKeys = {'x','y','z'}\r\n    \r\n    if (adjustment == nil) then\r\n        result = { position['x'], position['y'], position['z'] }\r\n    else\r\n        for key, value in pairs(adjustment) do\r\n            result[key] = position[positionKeys[key]] + value\r\n        end\r\n    end\r\n    \r\n    return result\r\nend\r\n\r\n\r\nfunction setDeckTypes(types)\r\n    deckTypes = types\r\nend\r\n\r\n--[[ Private functions ]]\r\n\r\n\r\nfunction dealCards(deck, rotation, positions)\r\n    local parameters = {}\r\n    parameters.position = {}\r\n    parameters.rotation = rotation\r\n    parameters.callback = \"\"\r\n    parameters.params = {}\r\n    \r\n    for _, position in pairs(positions) do\r\n        parameters.position = position\r\n        card = deck.takeObject(parameters)\r\n    end\r\nend\r\n\r\n\r\nfunction initializeGameStage(stageCardDeckGUID, positions)\r\n    stageCardDeck = getObjectFromGUID(stageCardDeckGUID)\r\n    \r\n    print(\"Shuffling \" .. stageCardDeck.getName() .. \" cards\")\r\n    stageCardDeck.shuffle()\r\n    \r\n    dealCards(stageCardDeck, {0.0, 180.0, 180.0}, positions)\r\nend\r\n\r\n\r\nfunction initializeFamilyBoard()\r\n    mainBoard = getObjectFromGUID(\"7db9f8\")\r\n    boardBag = getObjectFromGUID(\"a11e39\")\r\n    local parameters = {}\r\n    parameters.position = getObjectPositionTable(mainBoard, nil)\r\n    parameters.rotation = {0.0, 180.0, 0.0}\r\n    parameters.callback = \"\"\r\n    parameters.params = {}\r\n    mainBoard.unlock()\r\n    mainBoard.setPositionSmooth(getObjectPositionTable(boardBag, {0.0, 1.5, 0.0}))\r\n    familyBoard = boardBag.takeObject(parameters)\r\n    familyBoard.lock()\r\nend\r\n\r\n\r\nfunction initializeGameStageCards()\r\n    initializeGameStage(\r\n        stage1CardDeckGUID,\r\n        {\r\n            {-2.63777614, 1.30030215, 0.194500551},\r\n            {0.397731841, 1.26712489, 0.03501895},\r\n            {0.316840023, 1.2755394, -4.122939},\r\n            {0.418771684, 1.28196931, -8.297897}\r\n        })\r\n    initializeGameStage(\r\n        stage2CardDeckGUID,\r\n        {\r\n            {3.30984449, 1.231528, 0.00103998382},\r\n            {3.24591732, 1.23985708, -4.213084},\r\n            {3.4350183, 1.24877107, -8.049803}\r\n        })\r\n    initializeGameStage(\r\n        stage3CardDeckGUID,\r\n        {\r\n            {7.650797, 1.205321, -3.60009027},\r\n            {7.55944, 1.2157166, -8.03801}\r\n        })\r\n    initializeGameStage(\r\n        stage4CardDeckGUID,\r\n        {\r\n            {10.4956465, 1.205321, -3.554801},\r\n            {10.5654831, 1.2157166, -8.035828}\r\n        })\r\n    initializeGameStage(\r\n        stage5CardDeckGUID,\r\n        {\r\n            {13.5662766, 1.20532107, -3.49873352},\r\n            {13.5698023, 1.21571648, -7.92842054}\r\n        })\r\nend\r\n\r\n\r\nfunction initializeActionCards(playerCount, isFamilyGame)\r\n    print(\"Initializing player cards for \" .. playerCount .. \" players family mode \" .. tostring(isFamilyGame))\r\n    actionCards5Players = getObjectFromGUID(\"590540\")\r\n    actionCards4Players = getObjectFromGUID(\"2dd967\")\r\n    actionCards3Players = getObjectFromGUID(\"4bdd23\")\r\n    actionCardsBag = getObjectFromGUID(\"87e8b1\")\r\n    actionCardsBagPosition = getObjectPositionTable(actionCardsBag, {0.0, 1.5, 0.0})\r\n    rotation = {0.0, 180.0, 0.0}\r\n    \r\n    if (isFamilyGame) then\r\n        rotation[3] = 180.0\r\n    end\r\n    \r\n    if (playerCount == 5) then\r\n        actionCards4Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards3Players.setPositionSmooth(actionCardsBagPosition)\r\n        dealCards(\r\n            actionCards5Players,\r\n            rotation,\r\n            {\r\n                {-13.1315432, 1.35851169,-8.331627},\r\n                {-10.2916288, 1.35850871, 0.2497616},\r\n                {-10.1748323, 1.35851026, -4.013337},\r\n                {-10.298852, 1.35851181, -8.452009},\r\n                {-13.19608, 1.35850859, 0.2789259},\r\n                {-13.1250954, 1.35851014, -3.91666961}\r\n            })\r\n    elseif (playerCount == 4) then\r\n        actionCards5Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards3Players.setPositionSmooth(actionCardsBagPosition)\r\n        dealCards(\r\n            actionCards4Players,\r\n            rotation,\r\n            {\r\n                {-13.2538042, 1.35851169, -8.345971},\r\n                {-10.3602352, 1.35850859, 0.282183915},\r\n                {-10.3508177, 1.35851014, -4.06672955},\r\n                {-10.3133535, 1.35851169, -8.395471},\r\n                {-13.2757206, 1.35850871, 0.223956347},\r\n                {-13.2007608, 1.35851014, -3.87375879}\r\n            })\r\n    elseif (playerCount == 3) then\r\n        actionCards5Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards4Players.setPositionSmooth(actionCardsBagPosition)\r\n        dealCards(\r\n            actionCards3Players,\r\n            rotation,\r\n            {\r\n                {-10.4203014, 1.35851014, -4.19282},\r\n                {-10.407362, 1.35851181, -8.453454},\r\n                {-13.1756124, 1.35851026, -4.16184473},\r\n                {-13.2102251, 1.35851169, -8.382444}\r\n            })\r\n    elseif (playerCount == 2 or playerCount == 1) then\r\n        actionCards5Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards4Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards3Players.setPositionSmooth(actionCardsBagPosition)\r\n    end\r\nend\r\n\r\n\r\nfunction initializeOneOccupationType(isCorrect, playerCount, occupations1Player, occupations3Players, occupations4Players, occupationDeckPosition, occupationBagPosition)\r\n    if (isCorrect) then\r\n        occupations1Player.flip()\r\n        occupations1Player.setPosition(occupationDeckPosition)\r\n        \r\n        if (playerCount >= 3) then\r\n            occupations3Players.flip()\r\n            occupations3Players.setPosition(occupationDeckPosition)\r\n            \r\n            if (playerCount >= 4) then\r\n                occupations4Players.flip()\r\n                occupations4Players.setPosition(occupationDeckPosition)\r\n            else\r\n                occupations4Players.setPositionSmooth(occupationBagPosition)\r\n            end\r\n        else\r\n            occupations3Players.setPositionSmooth(occupationBagPosition)\r\n            occupations4Players.setPositionSmooth(occupationBagPosition)\r\n        end\r\n    else\r\n        occupations1Player.setPositionSmooth(occupationBagPosition)\r\n        occupations3Players.setPositionSmooth(occupationBagPosition)\r\n        occupations4Players.setPositionSmooth(occupationBagPosition)\r\n    end\r\nend\r\n\r\n\r\nfunction initializeOccupations(playerCount, deckTypes)\r\n    occupationShufflingZone = getObjectFromGUID(occupationShufflingZoneGUID)\r\n    occupationDeckPosition = getObjectPositionTable(occupationShufflingZone, nil)\r\n    \r\n    initializeOneOccupationType(\r\n        table.contains(deckTypes, \"K\"),\r\n        playerCount,\r\n        getObjectFromGUID(occupationDeckGUIDs[1]),\r\n        getObjectFromGUID(occupationDeckGUIDs[2]),\r\n        getObjectFromGUID(occupationDeckGUIDs[3]),\r\n        occupationDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(kDeckBagGUID), {0.0, 1.5, 0.0}))\r\n    \r\n    initializeOneOccupationType(\r\n        table.contains(deckTypes, \"E\"),\r\n        playerCount,\r\n        getObjectFromGUID(occupationDeckGUIDs[4]),\r\n        getObjectFromGUID(occupationDeckGUIDs[5]),\r\n        getObjectFromGUID(occupationDeckGUIDs[6]),\r\n        occupationDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(eDeckBagGUID), {0.0, 1.5, 0.0}))\r\n    \r\n    initializeOneOccupationType(\r\n        table.contains(deckTypes, \"I\"),\r\n        playerCount,\r\n        getObjectFromGUID(occupationDeckGUIDs[7]),\r\n        getObjectFromGUID(occupationDeckGUIDs[8]),\r\n        getObjectFromGUID(occupationDeckGUIDs[9]),\r\n        occupationDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(iDeckBagGUID), {0.0, 1.5, 0.0}))\r\nend\r\n\r\n\r\nfunction initializeOneMinorImprovementType(isCorrect, minorImprovements, minorImprovementDeckPosition, minorImprovementBagPosition)\r\n    if (isCorrect) then\r\n        minorImprovements.flip()\r\n        minorImprovements.setPosition(minorImprovementDeckPosition)\r\n    else\r\n        minorImprovements.setPositionSmooth(minorImprovementBagPosition)\r\n    end\r\nend\r\n\r\n\r\nfunction initializeMinorImprovements(deckTypes)\r\n    minorImprovementShufflingZone = getObjectFromGUID(minorImprovementShufflingZoneGUID)\r\n    minorImprovementDeckPosition = getObjectPositionTable(minorImprovementShufflingZone, nil)\r\n    \r\n    initializeOneMinorImprovementType(\r\n        table.contains(deckTypes, \"K\"),\r\n        getObjectFromGUID(minorImprovementDeckGUIDs[1]),\r\n        minorImprovementDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(kDeckBagGUID), {0.0, 1.5, 0.0}))\r\n        \r\n    initializeOneMinorImprovementType(\r\n        table.contains(deckTypes, \"E\"),\r\n        getObjectFromGUID(minorImprovementDeckGUIDs[2]),\r\n        minorImprovementDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(eDeckBagGUID), {0.0, 1.5, 0.0}))\r\n        \r\n    initializeOneMinorImprovementType(\r\n        table.contains(deckTypes, \"I\"),\r\n        getObjectFromGUID(minorImprovementDeckGUIDs[3]),\r\n        minorImprovementDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(iDeckBagGUID), {0.0, 1.5, 0.0}))\r\nend\r\n\r\n\r\n--[[ Global functions ]]\r\n\r\n\r\nfunction initializeBoard()\r\n    if (gameStarted) then\r\n        print(\"Game already started.\")\r\n        return\r\n    end\r\n    \r\n    gameStarted = true\r\n    isFamilyGame = false\r\n    \r\n    players = getSeatedPlayers()\r\n    \r\n    if (playerCount < #players) then\r\n        print(\"Game was setup for \" .. playerCount .. \" players but currently \" .. #players .. \" players seated. Adjusting for seated player count.\")\r\n        playerCount = #players\r\n    end\r\n\r\n    print(\"Initializing board for \" .. playerCount .. \" players with decks '\" .. table.toString(deckTypes, \",\") .. \"'\")\r\n    \r\n    if (next(deckTypes) == nil) then\r\n        print(\"No decks were chosen, using family rules\")\r\n        isFamilyGame = true\r\n        initializeFamilyBoard()\r\n    end\r\n    \r\n    initializeGameStageCards()\r\n    initializeActionCards(playerCount, isFamilyGame)\r\n    initializeOccupations(playerCount, deckTypes)\r\n    initializeMinorImprovements(deckTypes)\r\nend\r\n\r\n\r\nfunction initializeWorkPhase()\r\nend\r\n\r\n\r\nfunction dealOccupations(object)\r\n    print(\"Shuffling occupations from deck \" .. object.getName() .. \" GUID \" .. object.getGUID())\r\n    \r\n    object.shuffle()\r\n\r\n    print(\"Dealing 7 occupations to each player\")\r\n    object.dealToAll(7)\r\nend\r\n\r\n\r\nfunction dealMinorImprovements(object)\r\n    print(\"Shuffling minor improvements from deck \" .. object.getName() .. \" GUID \" .. object.getGUID())\r\n    \r\n    object.shuffle()\r\n\r\n    print(\"Dealing 7 minor improvements to each player\")\r\n    object.dealToAll(7)\r\nend\r\n\r\n\r\n--[[ Even hooks ]]\r\n\r\nfunction onObjectEnterScriptingZone(zone, object)\r\n    print(\"Object \" .. object.getName() .. \" type \" .. object.name .. \" GUID \" .. object.getGUID() .. \" entered Zone \" .. zone.getName() .. \" GUID \" .. zone.getGUID())\r\n    if (zone.getGUID() == occupationShufflingZoneGUID and (object.name == \"Deck\" or object.name == \"DeckCustom\")) then\r\n        dealOccupations(object)\r\n    elseif (zone.getGUID() == minorImprovementShufflingZoneGUID and (object.name == \"Deck\" or object.name == \"DeckCustom\")) then\r\n        dealMinorImprovements(object)\r\n    end\r\nend\r\n\r\nfunction onObjectLeaveScriptingZone(zone, object)\r\n    print(\"Object \" .. object.getName() .. \" type \" .. object.name .. \" GUID \" .. object.getGUID() .. \" left Zone \" .. zone.getName() .. \" GUID \" .. zone.getGUID())\r\nend\r\n\r\n\r\n-- function update()\r\n-- end\r\n\r\nfunction onload()\r\nend\r\n",
+  "PlayerTurn": "SNiLD",
+  "LuaScript": "--[[ Helpers ]]\r\n\r\nfunction table.contains(table, element)\r\n  for _, value in pairs(table) do\r\n    if value == element then\r\n      return true\r\n    end\r\n  end\r\n  return false\r\nend\r\n\r\n\r\nfunction table.toString(table, separator)\r\n    result = \"\"\r\n    for _, value in pairs(table) do\r\n        if (string.len(result) == 0) then\r\n            result = result .. value\r\n        else\r\n            result = result .. separator .. value\r\n        end\r\n    end\r\n    return result\r\nend\r\n\r\n\r\nfunction table.isEmpty(table)\r\n    if (table == nil) then\r\n        return true\r\n    end\r\n    \r\n    if (next(table) == nil) then\r\n        return true\r\n    end\r\n    \r\n    return false\r\nend\r\n\r\n\r\nfunction dummy()\r\nend\r\n\r\n\r\n--[[ Globals ]]\r\n\r\n\r\ngameStarted = false\r\nplayerCount = 0\r\ncurrentRoundNumber = 0\r\ndeckTypes = {}\r\nplayerColors = {}\r\nactionsRemaining = {}\r\nplayerFarmScriptingZoneGUIDs = { White = \"5f165b\", Red = \"f1ea9d\", Green = \"baae38\", Blue = \"f12186\", Purple = \"8e8f24\" }\r\nworkerGUIDs =\r\n{\r\n    White = { \"982e0c\", \"1d658c\", \"91230a\", \"339556\", \"8acc12\" },\r\n    Red = { \"f5f9c6\", \"3adf43\", \"8c1ca6\", \"aed233\", \"e7f696\" },\r\n    Green = { \"a8f720\", \"306232\", \"e3babc\", \"b57c85\", \"758634\" },\r\n    Blue = { \"cc5517\", \"d8d05d\", \"6b18da\", \"7c565a\", \"35d880\" },\r\n    Purple = { \"317185\", \"1da0ea\", \"96be86\", \"8898f4\", \"c1abc2\" }\r\n}\r\nhomeZoneGUIDs = { White = \"cddcd1\", Red = \"9d9005\", Green = \"0f79a9\", Blue = \"b4d2b7\", Purple = \"d9e998\"  }\r\nresourceBagGUIDs = { Wood = \"57458b\", Clay = \"8a147c\", Stone = \"c64ad7\", Reed = \"141313\", Grain = \"61fc77\", Vegetable = \"e7cb62\", Food = \"f249ab\", Sheep = \"f851b2\", Boar = \"e7b33c\", Cattle = \"f0c5e7\" }\r\nactionCardScriptingZoneGUIDs = { \"26d1fc\", \"2a6c15\", \"0e1397\", \"0af55c\", \"c6e3f3\", \"8fdd38\" }\r\nactionBoardScriptingZoneGUIDs = { \"a08297\", \"e9469a\", \"3a7f4d\", \"aa671d\", \"241264\", \"292428\", \"ac920e\", \"6e8819\", \"04f5b0\", \"e01044\" }\r\nactionRoundScriptingZoneGUIDs = { \"8658b7\", \"fe050d\", \"ce9a11\", \"2cd64d\", \"833759\", \"ba2965\", \"5b711c\", \"b4381a\", \"5b99b7\", \"a2c5f0\", \"dce35e\", \"f62afb\", \"ccfdc4\", \"934f90\" }\r\nstage1CardDeckGUID = \"77c9f7\"\r\nstage2CardDeckGUID = \"ac1369\"\r\nstage3CardDeckGUID = \"ceb91a\"\r\nstage4CardDeckGUID = \"8f6c74\"\r\nstage5CardDeckGUID = \"d78dfb\"\r\nkDeckBagGUID = \"236391\"\r\neDeckBagGUID = \"5b947c\"\r\niDeckBagGUID = \"c4551b\"\r\noccupationDeckGUIDs = { \"5fd15d\", \"ba39bf\", \"61f6d6\", \"5c1922\", \"eec2e8\", \"1e6207\", \"997c19\", \"9879ec\", \"e4d037\" }\r\noccupationShufflingZoneGUID = \"d46db2\"\r\nminorImprovementDeckGUIDs = { \"fd9eea\", \"aaa166\", \"6de5b0\" }\r\nminorImprovementShufflingZoneGUID = \"286fa6\"\r\n\r\n\r\n--[[ These are hack functions because the API does not work correctly atm. ]]\r\n\r\nfunction getObjectPositionTable(object, adjustment)\r\n    local position = object.getPosition()\r\n    result = {}\r\n    positionKeys = {'x','y','z'}\r\n    \r\n    if (adjustment == nil) then\r\n        result = { position['x'], position['y'], position['z'] }\r\n    else\r\n        for key, value in pairs(adjustment) do\r\n            result[key] = position[positionKeys[key]] + value\r\n        end\r\n    end\r\n    \r\n    return result\r\nend\r\n\r\n\r\nfunction setDeckTypes(types)\r\n    deckTypes = types\r\nend\r\n\r\n\r\nfunction lock(object, parameters)\r\n    object.lock()\r\nend\r\n\r\n--[[ Private functions ]]\r\n\r\n\r\nfunction dealCards(deck, rotation, positions)\r\n    local parameters = {}\r\n    parameters.position = {}\r\n    parameters.rotation = rotation\r\n    parameters.callback = \"\"\r\n    parameters.params = {}\r\n    \r\n    for _, position in pairs(positions) do\r\n        parameters.position = position\r\n        card = deck.takeObject(parameters)\r\n        card.setPosition(position)\r\n        card.setRotation(rotation)\r\n    end\r\nend\r\n\r\n\r\nfunction initializeGameStage(stageCardDeckGUID, positions)\r\n    stageCardDeck = getObjectFromGUID(stageCardDeckGUID)\r\n    \r\n    print(\"Shuffling \" .. stageCardDeck.getName() .. \" cards\")\r\n    stageCardDeck.shuffle()\r\n    \r\n    dealCards(stageCardDeck, {0.0, 180.0, 180.0}, positions)\r\nend\r\n\r\n\r\nfunction initializeFamilyBoard()\r\n    mainBoard = getObjectFromGUID(\"7db9f8\")\r\n    boardBag = getObjectFromGUID(\"a11e39\")\r\n    local parameters = {}\r\n    parameters.position = getObjectPositionTable(mainBoard, nil)\r\n    parameters.rotation = {0.0, 180.0, 0.0}\r\n    parameters.callback = \"lock\"\r\n    parameters.params = {}\r\n    mainBoard.unlock()\r\n    mainBoard.setPositionSmooth(getObjectPositionTable(boardBag, {0.0, 1.5, 0.0}))\r\n    familyBoard = boardBag.takeObject(parameters)\r\n    familyBoard.setPosition(parameters.position)\r\nend\r\n\r\n\r\nfunction initializeGameStageCards()\r\n    initializeGameStage(\r\n        stage1CardDeckGUID,\r\n        {\r\n            {-2.63777614, 1.30030215, 0.194500551},\r\n            {0.397731841, 1.26712489, 0.03501895},\r\n            {0.316840023, 1.2755394, -4.122939},\r\n            {0.418771684, 1.28196931, -8.297897}\r\n        })\r\n    initializeGameStage(\r\n        stage2CardDeckGUID,\r\n        {\r\n            {3.30984449, 1.231528, 0.00103998382},\r\n            {3.24591732, 1.23985708, -4.213084},\r\n            {3.4350183, 1.24877107, -8.049803}\r\n        })\r\n    initializeGameStage(\r\n        stage3CardDeckGUID,\r\n        {\r\n            {7.650797, 1.205321, -3.60009027},\r\n            {7.55944, 1.2157166, -8.03801}\r\n        })\r\n    initializeGameStage(\r\n        stage4CardDeckGUID,\r\n        {\r\n            {10.4956465, 1.205321, -3.554801},\r\n            {10.5654831, 1.2157166, -8.035828}\r\n        })\r\n    initializeGameStage(\r\n        stage5CardDeckGUID,\r\n        {\r\n            {13.5662766, 1.20532107, -3.49873352},\r\n            {13.5698023, 1.21571648, -7.92842054}\r\n        })\r\nend\r\n\r\n\r\nfunction initializeActionCards(playerCount, isFamilyGame)\r\n    print(\"Initializing player cards for \" .. playerCount .. \" players family mode \" .. tostring(isFamilyGame))\r\n    actionCards5Players = getObjectFromGUID(\"590540\")\r\n    actionCards4Players = getObjectFromGUID(\"2dd967\")\r\n    actionCards3Players = getObjectFromGUID(\"4bdd23\")\r\n    actionCardsBag = getObjectFromGUID(\"87e8b1\")\r\n    actionCardsBagPosition = getObjectPositionTable(actionCardsBag, {0.0, 1.5, 0.0})\r\n    rotation = {0.0, 180.0, 0.0}\r\n    \r\n    if (isFamilyGame) then\r\n        rotation[3] = 180.0\r\n    end\r\n    \r\n    if (playerCount == 5) then\r\n        actionCards4Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards3Players.setPositionSmooth(actionCardsBagPosition)\r\n        dealCards(\r\n            actionCards5Players,\r\n            rotation,\r\n            {\r\n                {-13.1315432, 1.35851169,-8.331627},\r\n                {-10.2916288, 1.35850871, 0.2497616},\r\n                {-10.1748323, 1.35851026, -4.013337},\r\n                {-10.298852, 1.35851181, -8.452009},\r\n                {-13.19608, 1.35850859, 0.2789259},\r\n                {-13.1250954, 1.35851014, -3.91666961}\r\n            })\r\n    elseif (playerCount == 4) then\r\n        actionCards5Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards3Players.setPositionSmooth(actionCardsBagPosition)\r\n        dealCards(\r\n            actionCards4Players,\r\n            rotation,\r\n            {\r\n                {-13.2538042, 1.35851169, -8.345971},\r\n                {-10.3602352, 1.35850859, 0.282183915},\r\n                {-10.3508177, 1.35851014, -4.06672955},\r\n                {-10.3133535, 1.35851169, -8.395471},\r\n                {-13.2757206, 1.35850871, 0.223956347},\r\n                {-13.2007608, 1.35851014, -3.87375879}\r\n            })\r\n    elseif (playerCount == 3) then\r\n        actionCards5Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards4Players.setPositionSmooth(actionCardsBagPosition)\r\n        dealCards(\r\n            actionCards3Players,\r\n            rotation,\r\n            {\r\n                {-10.4203014, 1.35851014, -4.19282},\r\n                {-10.407362, 1.35851181, -8.453454},\r\n                {-13.1756124, 1.35851026, -4.16184473},\r\n                {-13.2102251, 1.35851169, -8.382444}\r\n            })\r\n    elseif (playerCount == 2 or playerCount == 1) then\r\n        actionCards5Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards4Players.setPositionSmooth(actionCardsBagPosition)\r\n        actionCards3Players.setPositionSmooth(actionCardsBagPosition)\r\n    end\r\nend\r\n\r\n\r\nfunction initializeOneOccupationType(isCorrect, playerCount, occupations1Player, occupations3Players, occupations4Players, occupationDeckPosition, occupationBagPosition)\r\n    if (isCorrect) then\r\n        occupations1Player.flip()\r\n        occupations1Player.setPosition(occupationDeckPosition)\r\n        \r\n        if (playerCount >= 3) then\r\n            occupations3Players.flip()\r\n            occupations3Players.setPosition(occupationDeckPosition)\r\n            \r\n            if (playerCount >= 4) then\r\n                occupations4Players.flip()\r\n                occupations4Players.setPosition(occupationDeckPosition)\r\n            else\r\n                occupations4Players.setPositionSmooth(occupationBagPosition)\r\n            end\r\n        else\r\n            occupations3Players.setPositionSmooth(occupationBagPosition)\r\n            occupations4Players.setPositionSmooth(occupationBagPosition)\r\n        end\r\n    else\r\n        occupations1Player.setPositionSmooth(occupationBagPosition)\r\n        occupations3Players.setPositionSmooth(occupationBagPosition)\r\n        occupations4Players.setPositionSmooth(occupationBagPosition)\r\n    end\r\nend\r\n\r\n\r\nfunction initializeOccupations(playerCount, deckTypes)\r\n    occupationShufflingZone = getObjectFromGUID(occupationShufflingZoneGUID)\r\n    occupationDeckPosition = getObjectPositionTable(occupationShufflingZone, nil)\r\n    \r\n    initializeOneOccupationType(\r\n        table.contains(deckTypes, \"K\"),\r\n        playerCount,\r\n        getObjectFromGUID(occupationDeckGUIDs[1]),\r\n        getObjectFromGUID(occupationDeckGUIDs[2]),\r\n        getObjectFromGUID(occupationDeckGUIDs[3]),\r\n        occupationDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(kDeckBagGUID), {0.0, 1.5, 0.0}))\r\n    \r\n    initializeOneOccupationType(\r\n        table.contains(deckTypes, \"E\"),\r\n        playerCount,\r\n        getObjectFromGUID(occupationDeckGUIDs[4]),\r\n        getObjectFromGUID(occupationDeckGUIDs[5]),\r\n        getObjectFromGUID(occupationDeckGUIDs[6]),\r\n        occupationDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(eDeckBagGUID), {0.0, 1.5, 0.0}))\r\n    \r\n    initializeOneOccupationType(\r\n        table.contains(deckTypes, \"I\"),\r\n        playerCount,\r\n        getObjectFromGUID(occupationDeckGUIDs[7]),\r\n        getObjectFromGUID(occupationDeckGUIDs[8]),\r\n        getObjectFromGUID(occupationDeckGUIDs[9]),\r\n        occupationDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(iDeckBagGUID), {0.0, 1.5, 0.0}))\r\nend\r\n\r\n\r\nfunction initializeOneMinorImprovementType(isCorrect, minorImprovements, minorImprovementDeckPosition, minorImprovementBagPosition)\r\n    if (isCorrect) then\r\n        minorImprovements.flip()\r\n        minorImprovements.setPosition(minorImprovementDeckPosition)\r\n    else\r\n        minorImprovements.setPositionSmooth(minorImprovementBagPosition)\r\n    end\r\nend\r\n\r\n\r\nfunction initializeMinorImprovements(deckTypes)\r\n    minorImprovementShufflingZone = getObjectFromGUID(minorImprovementShufflingZoneGUID)\r\n    minorImprovementDeckPosition = getObjectPositionTable(minorImprovementShufflingZone, nil)\r\n    \r\n    initializeOneMinorImprovementType(\r\n        table.contains(deckTypes, \"K\"),\r\n        getObjectFromGUID(minorImprovementDeckGUIDs[1]),\r\n        minorImprovementDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(kDeckBagGUID), {0.0, 1.5, 0.0}))\r\n        \r\n    initializeOneMinorImprovementType(\r\n        table.contains(deckTypes, \"E\"),\r\n        getObjectFromGUID(minorImprovementDeckGUIDs[2]),\r\n        minorImprovementDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(eDeckBagGUID), {0.0, 1.5, 0.0}))\r\n        \r\n    initializeOneMinorImprovementType(\r\n        table.contains(deckTypes, \"I\"),\r\n        getObjectFromGUID(minorImprovementDeckGUIDs[3]),\r\n        minorImprovementDeckPosition,\r\n        getObjectPositionTable(getObjectFromGUID(iDeckBagGUID), {0.0, 1.5, 0.0}))\r\nend\r\n\r\n\r\n--[[ Global functions ]]\r\n\r\n\r\nfunction initializeBoard()\r\n    if (gameStarted) then\r\n        print(\"Game already started.\")\r\n        return\r\n    end\r\n    \r\n    gameStarted = true\r\n    isFamilyGame = false\r\n    \r\n    players = getSeatedPlayers()\r\n    \r\n    if (playerCount < #players) then\r\n        print(\"Game was setup for \" .. playerCount .. \" players but currently \" .. #players .. \" players seated. Adjusting for seated player count.\")\r\n        playerCount = #players\r\n    end\r\n\r\n    print(\"Initializing board for \" .. playerCount .. \" players with decks '\" .. table.toString(deckTypes, \",\") .. \"'\")\r\n    \r\n    if (next(deckTypes) == nil) then\r\n        print(\"No decks were chosen, using family rules\")\r\n        isFamilyGame = true\r\n        initializeFamilyBoard()\r\n    end\r\n    \r\n    initializeGameStageCards()\r\n    initializeActionCards(playerCount, isFamilyGame)\r\n    initializeOccupations(playerCount, deckTypes)\r\n    initializeMinorImprovements(deckTypes)\r\n    startLuaCoroutine(nil, 'initializeWorkPhase')\r\nend\r\n\r\n\r\nfunction initializeWorkPhase()\r\n    coroutine.yield(0)\r\n    startRound()\r\n    return 1\r\nend\r\n\r\n\r\nfunction setActionsRemaining(color, count)\r\n    actionsRemaining[color] = count\r\nend\r\n\r\n\r\nfunction isEndOfRound()\r\n    if (actionsRemaining == nil or next(actionsRemaining) == nil) then\r\n        return true\r\n    end\r\n\r\n    for color, actions in pairs(actionsRemaining) do\r\n        if (actions ~= nil and actions > 0) then\r\n            print(\"Atleast player \" .. color .. \" still has \" .. actions .. \" actions\")\r\n            return false\r\n        end\r\n    end\r\n    \r\n    print(\"No player has turns remaining\")\r\n    return true\r\nend\r\n\r\n\r\nfunction returnWorker(object)\r\n    guid = object.getGUID()\r\n    for color, workerGUIDsForColor in pairs(workerGUIDs) do\r\n        for _, workerGUID in pairs(workerGUIDsForColor) do\r\n            if (guid == workerGUID) then\r\n                homeZone = getObjectFromGUID(homeZoneGUIDs[color])\r\n                object.setPositionSmooth(getObjectPositionTable(homeZone, nil))\r\n                return\r\n            end\r\n        end\r\n    end\r\nend\r\n\r\n\r\nfunction returnWorkersFromZone(zoneGUID)\r\n    zone = getObjectFromGUID(zoneGUID)\r\n    \r\n    for _, object in pairs(zone.getObjects()) do\r\n        returnWorker(object)\r\n    end\r\nend\r\n\r\n\r\nfunction returnWorkers()\r\n    print(\"Returning workers\")\r\n    \r\n    for _, guid in pairs(actionCardScriptingZoneGUIDs) do\r\n        returnWorkersFromZone(guid)\r\n    end\r\n    for _, guid in pairs(actionBoardScriptingZoneGUIDs) do\r\n        returnWorkersFromZone(guid)\r\n    end\r\n    for _, guid in pairs(actionRoundScriptingZoneGUIDs) do\r\n        returnWorkersFromZone(guid)\r\n    end    \r\nend\r\n\r\n\r\nfunction flipNewRoundCard()\r\n    print(\"Flipping new round card\")\r\n    zone = getObjectFromGUID(actionRoundScriptingZoneGUIDs[currentRoundNumber])\r\n    for _, object in pairs(zone.getObjects()) do\r\n        if (object.name == \"Card\") then\r\n            object.setRotation({0.0, 180.0, 0.0})\r\n        end\r\n    end\r\nend\r\n\r\n\r\nfunction fillResourceToZone(zone, resources)\r\n    zonePosition = getObjectPositionTable(zone, {0.0, 2.0, 0.0})\r\n    for resource, amount in pairs(resources) do\r\n        print(\"Adding \" .. amount .. \" \" .. resource .. \" to \" .. zone.getName())\r\n        resourceBag = getObjectFromGUID(resourceBagGUIDs[resource])\r\n        print(\"Taking resources from \" .. resourceBag.getName())\r\n        local parameters = {}\r\n        parameters.position = zonePosition\r\n        parameters.rotation = {0.0, 0.0, 0.0}\r\n        parameters.callback = \"\"\r\n        parameters.params = {}\r\n        for i = 1, amount, 1 do\r\n            object = resourceBag.takeObject(parameters)\r\n            object.setPosition(zonePosition)\r\n        end\r\n    end\r\nend\r\n\r\n\r\nfunction fillResourcesToZone(zoneGUID)\r\n    zone = getObjectFromGUID(zoneGUID)\r\n    print(\"Filling resources to zone \" .. zone.getName())\r\n    zoneResources = zone.getTable(\"resources\")\r\n    \r\n    if (not table.isEmpty(zoneResources)) then\r\n        fillResourceToZone(zone, zoneResources)\r\n        return\r\n    end\r\n    \r\n    for _, object in pairs(zone.getObjects()) do\r\n        if (object.name == \"Card\") then\r\n            print(\"Getting resources for card \" .. object.getName())\r\n            objectResources = object.getTable(\"resources\")\r\n            if (not table.isEmpty(objectResources)) then\r\n                fillResourceToZone(zone, objectResources)\r\n            end\r\n        end\r\n    end\r\nend\r\n\r\n\r\nfunction fillResources()\r\n    print(\"Filling resources\")\r\n    \r\n    for _, guid in pairs(actionCardScriptingZoneGUIDs) do\r\n        fillResourcesToZone(guid)\r\n    end\r\n    for _, guid in pairs(actionBoardScriptingZoneGUIDs) do\r\n        fillResourcesToZone(guid)\r\n    end\r\n    for roundNumber, guid in pairs(actionRoundScriptingZoneGUIDs) do\r\n        if (roundNumber <= currentRoundNumber) then\r\n            fillResourcesToZone(guid)\r\n        end\r\n    end    \r\nend\r\n\r\n\r\nfunction startRound()\r\n    currentRoundNumber = currentRoundNumber + 1\r\n    print(\"Starting round \" .. currentRoundNumber)\r\n    flipNewRoundCard()\r\n    fillResources()\r\nend\r\n\r\n\r\nfunction endRound()\r\n    print(\"Ending round \" .. currentRoundNumber)\r\n    returnWorkers()\r\nend\r\n\r\n\r\nfunction addAction(color)\r\n    actionsRemaining[color] = actionsRemaining[color] + 1\r\n    print(\"Adding action to player \" .. color .. \" player now has \" .. actionsRemaining[color] .. \" actions left\")\r\nend\r\n\r\n\r\nfunction removeAction(color)\r\n    actionsRemaining[color] = actionsRemaining[color] - 1\r\n    print(\"Removing action from player \" .. color .. \" player now has \" .. actionsRemaining[color] .. \" actions left\")\r\nend\r\n\r\n\r\nfunction getActions(color)\r\n    count = 0\r\n    farmGUID = playerFarmScriptingZoneGUIDs[color]\r\n    farmZone = getObjectFromGUID(farmGUID)\r\n    farmWorkerGUIDs = workerGUIDs[color]\r\n    \r\n    for _, object in pairs(farmZone.getObjects()) do\r\n        if (table.contains(farmWorkerGUIDs, object.getGUID())) then\r\n            count = count + 1\r\n        end\r\n    end\r\n    \r\n    return count\r\nend\r\n\r\n\r\nfunction updateActions()\r\n    actionsRemaining = {}\r\n    players = getSeatedPlayers()\r\n    print(\"Updating remaining actions for \" .. #players .. \" players\")\r\n    for _, color in pairs(players) do\r\n        actionsRemaining[color] = getActions(color)\r\n    end\r\n    \r\n    for color, actions in pairs(actionsRemaining) do\r\n        print(\"Player \" .. color .. \" has \" .. actions .. \" actions remaining\")\r\n    end\r\nend\r\n\r\n\r\n--[[ Even hooks ]]\r\n\r\nfunction onObjectEnterScriptingZone(zone, object)\r\n    for color, zoneGUID in pairs(playerFarmScriptingZoneGUIDs) do\r\n        if (zoneGUID == zone.getGUID()) then\r\n            for _, workerGUID in pairs(workerGUIDs[color]) do\r\n                if (workerGUID == object.getGUID()) then\r\n                    addAction(color)\r\n                    return\r\n                end\r\n            end\r\n        end\r\n    end\r\nend\r\n\r\nfunction onObjectLeaveScriptingZone(zone, object)\r\n    for color, zoneGUID in pairs(playerFarmScriptingZoneGUIDs) do\r\n        if (zoneGUID == zone.getGUID()) then\r\n            for _, workerGUID in pairs(workerGUIDs[color]) do\r\n                if (workerGUID == object.getGUID()) then\r\n                    removeAction(color)\r\n                    return\r\n                end\r\n            end\r\n        end\r\n    end\r\nend\r\n\r\n\r\n-- function update()\r\n-- end\r\n\r\nfunction onload()\r\n    updateActions()\r\nend\r\n\r\nfunction onPlayerTurnEnd(color)\r\n    if (isEndOfRound()) then\r\n        endRound()\r\n        if (currentRoundNumber < 14) then\r\n            startRound()\r\n        end\r\n    end\r\nend\r\n\r\nfunction onPlayerChangedColor(color)\r\n    updateActions()\r\nend\r\n",
   "Grid": {
     "Type": 0,
     "Lines": false,
@@ -32,11 +32,11 @@
         "Color": "Blue",
         "Transform": {
           "posX": 23.6700039,
-          "posY": 3.29322815,
+          "posY": 3.293055,
           "posZ": 34.4527626,
-          "rotX": 3.07674881E-08,
+          "rotX": 7.03814251E-08,
           "rotY": 179.8,
-          "rotZ": 8.304655E-08,
+          "rotZ": 1.72931365E-07,
           "scaleX": 15.3268776,
           "scaleY": 11.8970528,
           "scaleZ": 6.35014629
@@ -46,11 +46,11 @@
         "Color": "Green",
         "Transform": {
           "posX": -23.6700039,
-          "posY": 3.29322815,
+          "posY": 3.293055,
           "posZ": 34.43159,
-          "rotX": 3.0477E-08,
-          "rotY": 180.00058,
-          "rotZ": 8.315338E-08,
+          "rotX": 6.97755E-08,
+          "rotY": 180.000778,
+          "rotZ": 1.73175962E-07,
           "scaleX": 15.3268747,
           "scaleY": 11.8970528,
           "scaleZ": 6.35014534
@@ -60,11 +60,11 @@
         "Color": "Purple",
         "Transform": {
           "posX": 51.5785675,
-          "posY": 3.29322815,
+          "posY": 3.293055,
           "posZ": 11.7324,
-          "rotX": -8.315344E-08,
+          "rotX": -1.73176375E-07,
           "rotY": 270.0,
-          "rotZ": 3.04774481E-08,
+          "rotZ": 6.977748E-08,
           "scaleX": 15.1940022,
           "scaleY": 11.8970528,
           "scaleZ": 6.40567875
@@ -74,11 +74,11 @@
         "Color": "Red",
         "Transform": {
           "posX": -23.6700039,
-          "posY": 3.29322815,
+          "posY": 3.293055,
           "posZ": -34.42515,
-          "rotX": -3.04773558E-08,
-          "rotY": -3.696568E-10,
-          "rotZ": -8.315321E-08,
+          "rotX": -6.97770659E-08,
+          "rotY": -8.48419557E-10,
+          "rotZ": -1.73175422E-07,
           "scaleX": 15.3268948,
           "scaleY": 11.8970528,
           "scaleZ": 6.35014534
@@ -88,11 +88,11 @@
         "Color": "White",
         "Transform": {
           "posX": 23.6700039,
-          "posY": 3.29322815,
+          "posY": 3.293055,
           "posZ": -34.2558136,
-          "rotX": -3.04773558E-08,
-          "rotY": -3.696568E-10,
-          "rotZ": -8.315321E-08,
+          "rotX": -6.97770659E-08,
+          "rotY": -8.48419557E-10,
+          "rotZ": -1.73175422E-07,
           "scaleX": 15.3268747,
           "scaleY": 11.8970547,
           "scaleZ": 6.705048
@@ -107,11 +107,11 @@
       "Name": "Bag",
       "Transform": {
         "posX": 15.303401,
-        "posY": 0.78635174,
+        "posY": 0.7863687,
         "posZ": -25.48456,
-        "rotX": -1.54089521E-05,
-        "rotY": 0.155454084,
-        "rotZ": -8.08498157E-07,
+        "rotX": -1.60642958E-05,
+        "rotY": 0.155455619,
+        "rotZ": 1.19586741E-06,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
@@ -120,7 +120,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
-        "g": 0.996081,
+        "g": 0.9960841,
         "b": 0.99999994
       },
       "Locked": true,
@@ -709,11 +709,11 @@
       "Name": "Bag",
       "Transform": {
         "posX": 42.8545265,
-        "posY": 0.786333263,
+        "posY": 0.7863327,
         "posZ": 19.7180119,
-        "rotX": 4.07530024E-06,
+        "rotX": 1.44598616E-05,
         "rotY": 345.151031,
-        "rotZ": -5.29342333E-06,
+        "rotZ": -7.184774E-06,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
@@ -721,9 +721,9 @@
       "Nickname": "Purple Fences",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.538230538,
+        "r": 0.5384972,
         "g": 0.0,
-        "b": 0.4650448
+        "b": 0.465331852
       },
       "Locked": true,
       "Grid": true,
@@ -1311,11 +1311,11 @@
       "Name": "Bag",
       "Transform": {
         "posX": -14.4878044,
-        "posY": 0.786356,
+        "posY": 0.7863792,
         "posZ": 24.98447,
-        "rotX": 2.43550458E-05,
-        "rotY": 0.182670549,
-        "rotZ": 5.39128041E-06,
+        "rotX": 2.05055621E-05,
+        "rotY": 0.182672,
+        "rotZ": 6.433368E-06,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
@@ -1323,8 +1323,8 @@
       "Nickname": "Green Fences",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.168931738,
-        "g": 0.7296158,
+        "r": 0.169202879,
+        "g": 0.7297976,
         "b": 0.03921569
       },
       "Locked": true,
@@ -1912,12 +1912,12 @@
     {
       "Name": "Bag",
       "Transform": {
-        "posX": -13.8800659,
-        "posY": 0.7863403,
+        "posX": -13.8800669,
+        "posY": 0.786343634,
         "posZ": -24.9786282,
-        "rotX": 4.594155E-07,
-        "rotY": 0.161183581,
-        "rotZ": -6.67660561E-06,
+        "rotX": 2.65966924E-06,
+        "rotY": 0.161185071,
+        "rotZ": -1.686607E-05,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
@@ -1926,8 +1926,8 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
-        "g": 0.1574263,
-        "b": 0.321112961
+        "g": 0.15769206,
+        "b": 0.321415931
       },
       "Locked": true,
       "Grid": true,
@@ -2517,9 +2517,9 @@
         "posX": 15.3200922,
         "posY": 0.7863409,
         "posZ": 25.112381,
-        "rotX": -2.35181142E-05,
-        "rotY": 0.15681009,
-        "rotZ": 1.03003167E-05,
+        "rotX": -1.99506085E-05,
+        "rotY": 0.156811655,
+        "rotZ": 1.11860445E-05,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
@@ -2527,9 +2527,9 @@
       "Nickname": "Blue Fences",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.1493136,
-        "g": 0.165008083,
-        "b": 0.945143759
+        "r": 0.1495755,
+        "g": 0.165277585,
+        "b": 0.9451844
       },
       "Locked": true,
       "Grid": true,
@@ -3117,7 +3117,7 @@
       "Name": "Bag",
       "Transform": {
         "posX": 28.3475685,
-        "posY": 0.786358953,
+        "posY": 0.7863823,
         "posZ": -7.34778452,
         "rotX": -1.71162E-05,
         "rotY": 359.5393,
@@ -4403,11 +4403,11 @@
       "Name": "Bag",
       "Transform": {
         "posX": 28.1527424,
-        "posY": 0.7863506,
+        "posY": 0.786347032,
         "posZ": -10.5538921,
-        "rotX": -1.05151967E-05,
+        "rotX": -9.641911E-06,
         "rotY": 90.17113,
-        "rotZ": 3.812903E-06,
+        "rotZ": 5.293414E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -4415,8 +4415,8 @@
       "Nickname": "Wood/Clay House",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.5592449,
-        "g": 0.214897484,
+        "r": 0.5595037,
+        "g": 0.215184674,
         "b": 0.0
       },
       "Locked": true,
@@ -4966,12 +4966,12 @@
     {
       "Name": "Bag",
       "Transform": {
-        "posX": 53.7591,
-        "posY": 0.7963079,
-        "posZ": -36.26612,
-        "rotX": -3.40074166E-06,
-        "rotY": 0.055080615,
-        "rotZ": 7.594901E-05,
+        "posX": 53.75914,
+        "posY": 0.7963077,
+        "posZ": -36.2659378,
+        "rotX": 1.21005742E-05,
+        "rotY": 0.0514823124,
+        "rotZ": 3.2570777E-05,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
@@ -4979,8 +4979,8 @@
       "Nickname": "Family Board",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.941225,
-        "g": 0.4890041,
+        "r": 0.941268265,
+        "g": 0.4892845,
         "b": 0.0
       },
       "Locked": false,
@@ -5032,11 +5032,11 @@
       "Name": "Bag",
       "Transform": {
         "posX": 53.12713,
-        "posY": 0.786369264,
+        "posY": 0.7863799,
         "posZ": -8.834163,
-        "rotX": -8.040528E-06,
-        "rotY": 0.160272986,
-        "rotZ": 4.98639529E-05,
+        "rotX": -1.02542308E-05,
+        "rotY": 0.1602746,
+        "rotZ": 4.886243E-05,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
@@ -5044,9 +5044,9 @@
       "Nickname": "I-Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.6865028,
+        "r": 0.6867062,
         "g": 0.99999994,
-        "b": 0.655147552
+        "b": 0.655366361
       },
       "Locked": true,
       "Grid": true,
@@ -5063,11 +5063,11 @@
       "Name": "Bag",
       "Transform": {
         "posX": 53.0433,
-        "posY": 0.786358833,
+        "posY": 0.7863705,
         "posZ": -3.35581231,
-        "rotX": 1.39383064E-06,
-        "rotY": 0.173905134,
-        "rotZ": 3.59951155E-05,
+        "rotX": 9.355759E-07,
+        "rotY": 0.173906177,
+        "rotZ": 4.622532E-05,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
@@ -5076,8 +5076,8 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
-        "g": 0.165008083,
-        "b": 0.329752237
+        "g": 0.165277585,
+        "b": 0.330055624
       },
       "Locked": true,
       "Grid": true,
@@ -5093,12 +5093,12 @@
     {
       "Name": "Bag",
       "Transform": {
-        "posX": 53.0461,
-        "posY": 0.7863453,
+        "posX": 53.0461121,
+        "posY": 0.786357,
         "posZ": -6.111948,
-        "rotX": 1.55670364E-06,
-        "rotY": 0.106967784,
-        "rotZ": -6.993617E-06,
+        "rotX": 3.245936E-06,
+        "rotY": 0.106968656,
+        "rotZ": -1.5507896E-05,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
@@ -5106,8 +5106,8 @@
       "Nickname": "E-Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.1266474,
-        "g": 0.6962342,
+        "r": 0.126896992,
+        "g": 0.696434438,
         "b": 0.0364467427
       },
       "Locked": true,
@@ -5125,11 +5125,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 19.5448036,
-        "posY": 1.44347608,
+        "posY": 1.4434799,
         "posZ": -21.5924225,
-        "rotX": -8.325648E-07,
-        "rotY": 345.000854,
-        "rotZ": 180.00032,
+        "rotX": 9.538297E-06,
+        "rotY": 345.000336,
+        "rotZ": 180.000214,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -5138,7 +5138,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
-        "g": 0.996083558,
+        "g": 0.9960897,
         "b": 0.99999994
       },
       "Locked": false,
@@ -5162,11 +5162,11 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 15.3186207,
-        "posY": 0.978273749,
+        "posX": 15.3186,
+        "posY": 0.9782738,
         "posZ": -20.9392776,
-        "rotX": 4.25563576E-06,
-        "rotY": 180.014343,
+        "rotX": 1.32613684E-06,
+        "rotY": 180.014084,
         "rotZ": 180.0,
         "scaleX": 0.5,
         "scaleY": 0.5,
@@ -5177,7 +5177,7 @@
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.9960835
+        "b": 0.996089637
       },
       "Locked": false,
       "Grid": true,
@@ -5200,12 +5200,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 14.2794209,
-        "posY": 1.21780181,
-        "posZ": -21.9169712,
-        "rotX": -9.002119E-07,
-        "rotY": 0.0934611,
-        "rotZ": -1.30450962E-06,
+        "posX": 14.2794037,
+        "posY": 1.21780193,
+        "posZ": -21.916975,
+        "rotX": 6.68188932E-07,
+        "rotY": 0.09829856,
+        "rotZ": -3.17661176E-07,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -5215,7 +5215,7 @@
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.9960835
+        "b": 0.996089637
       },
       "Locked": false,
       "Grid": true,
@@ -5241,9 +5241,9 @@
         "posX": 15.3771324,
         "posY": 0.98678267,
         "posZ": -22.398283,
-        "rotX": -4.048384E-08,
+        "rotX": -4.05105425E-08,
         "rotY": 329.546753,
-        "rotZ": 9.041598E-08,
+        "rotZ": 9.04347957E-08,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -5251,7 +5251,7 @@
       "Nickname": "White Offspring",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.9972583,
+        "r": 0.9972625,
         "g": 0.99999994,
         "b": 0.997448742
       },
@@ -5277,9 +5277,9 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 15.3819275,
-        "posY": 0.978273749,
+        "posY": 0.97827363,
         "posZ": -23.6804733,
-        "rotX": -5.009474E-09,
+        "rotX": -6.553071E-08,
         "rotY": 194.945435,
         "rotZ": 180.0,
         "scaleX": 0.5,
@@ -5291,7 +5291,7 @@
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.9960835
+        "b": 0.996089637
       },
       "Locked": false,
       "Grid": true,
@@ -5314,12 +5314,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 14.2536221,
+        "posX": 14.2535753,
         "posY": 1.21780181,
-        "posZ": -23.658699,
-        "rotX": 1.40540033E-06,
-        "rotY": 0.04365919,
-        "rotZ": 5.22577864E-07,
+        "posZ": -23.6586971,
+        "rotX": -1.20573384E-06,
+        "rotY": 0.0434275381,
+        "rotZ": -1.28110048E-06,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -5329,7 +5329,7 @@
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.9960835
+        "b": 0.996089637
       },
       "Locked": false,
       "Grid": true,
@@ -5352,12 +5352,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 14.30494,
-        "posY": 1.21780181,
-        "posZ": -20.9619312,
-        "rotX": -5.116154E-06,
-        "rotY": 0.159303889,
-        "rotZ": -6.17130354E-06,
+        "posX": 14.3049231,
+        "posY": 1.21780169,
+        "posZ": -20.9619331,
+        "rotX": -4.44624845E-07,
+        "rotY": 0.164083615,
+        "rotZ": -7.22496566E-07,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -5367,7 +5367,7 @@
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.9960835
+        "b": 0.996089637
       },
       "Locked": false,
       "Grid": true,
@@ -5391,11 +5391,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 19.5241585,
-        "posY": 1.44347882,
+        "posY": 1.44348228,
         "posZ": -23.9606724,
-        "rotX": -0.000251450372,
+        "rotX": -0.000156326627,
         "rotY": 284.546875,
-        "rotZ": 179.999741,
+        "rotZ": 179.999832,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -5404,7 +5404,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
-        "g": 0.996083558,
+        "g": 0.9960897,
         "b": 0.99999994
       },
       "Locked": false,
@@ -5428,12 +5428,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 14.310442,
-        "posY": 1.21780157,
-        "posZ": -22.7392273,
-        "rotX": 9.38758262E-07,
-        "rotY": 180.137009,
-        "rotZ": -3.16354345E-07,
+        "posX": 14.3104124,
+        "posY": 1.21780181,
+        "posZ": -22.7391319,
+        "rotX": 3.24380271E-05,
+        "rotY": 180.141464,
+        "rotZ": -7.320616E-05,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -5443,7 +5443,7 @@
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.9960835
+        "b": 0.996089637
       },
       "Locked": false,
       "Grid": true,
@@ -5467,11 +5467,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -27.1942158,
-        "posY": 1.10952258,
+        "posY": 1.10952675,
         "posZ": -21.354805,
-        "rotX": -9.071576E-05,
+        "rotX": -4.79272749E-05,
         "rotY": 30.5310459,
-        "rotZ": 0.0001009901,
+        "rotZ": 6.955736E-05,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -5479,7 +5479,7 @@
       "Nickname": "Red Parent",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7561824,
+        "r": 0.756515145,
         "g": 0.0,
         "b": 0.02743375
       },
@@ -5504,12 +5504,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -14.6110477,
-        "posY": 0.9867828,
+        "posX": -14.611001,
+        "posY": 0.986782849,
         "posZ": -23.1758137,
-        "rotX": 5.4444417E-08,
+        "rotX": 8.12580847E-09,
         "rotY": 345.0013,
-        "rotZ": 6.7287E-08,
+        "rotZ": 1.52308726E-08,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -5517,7 +5517,7 @@
       "Nickname": "Red Offspring",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7561756,
+        "r": 0.75650835,
         "g": 0.0,
         "b": 0.02743375
       },
@@ -5542,12 +5542,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -14.6471357,
-        "posY": 0.980643,
-        "posZ": -21.81692,
-        "rotX": 0.0110550011,
-        "rotY": 152.4164,
-        "rotZ": 180.294159,
+        "posX": -14.6476231,
+        "posY": 0.9811032,
+        "posZ": -21.8180122,
+        "rotX": 0.009972877,
+        "rotY": 152.303986,
+        "rotZ": 180.320831,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -5555,7 +5555,7 @@
       "Nickname": "Red Offspring",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7561688,
+        "r": 0.7565016,
         "g": 0.0,
         "b": 0.02743375
       },
@@ -5580,12 +5580,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -14.6270132,
-        "posY": 1.00448382,
-        "posZ": -20.5827427,
-        "rotX": 358.301361,
-        "rotY": 118.290337,
-        "rotZ": 181.309067,
+        "posX": -14.6210451,
+        "posY": 1.004454,
+        "posZ": -20.5815258,
+        "rotX": 358.409363,
+        "rotY": 117.847893,
+        "rotZ": 181.409286,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -5593,7 +5593,7 @@
       "Nickname": "Red Offsrping",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7561756,
+        "r": 0.75650835,
         "g": 0.0,
         "b": 0.02743375
       },
@@ -5619,11 +5619,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -27.2024918,
-        "posY": 1.10952377,
+        "posY": 1.10952759,
         "posZ": -23.9145164,
-        "rotX": -5.146863E-06,
-        "rotY": 15.1585245,
-        "rotZ": -1.21151124E-05,
+        "rotX": 9.636591E-06,
+        "rotY": 15.1587582,
+        "rotZ": -2.65080234E-06,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -5631,7 +5631,7 @@
       "Nickname": "Red Parent",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7561756,
+        "r": 0.75650835,
         "g": 0.0,
         "b": 0.02743375
       },
@@ -5656,12 +5656,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -13.6179466,
-        "posY": 1.1114037,
-        "posZ": -21.08192,
-        "rotX": 3.99691635E-06,
-        "rotY": 147.579239,
-        "rotZ": 179.999924,
+        "posX": -13.6179752,
+        "posY": 1.111404,
+        "posZ": -21.0818272,
+        "rotX": 7.80104E-05,
+        "rotY": 147.5826,
+        "rotZ": 180.000015,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -5669,7 +5669,7 @@
       "Nickname": "Red Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.6701408,
+        "r": 0.670566,
         "g": 0.0,
         "b": 0.0
       },
@@ -5695,9 +5695,9 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -13.7204237,
-        "posY": 1.11140406,
+        "posY": 1.11140382,
         "posZ": -23.1313648,
-        "rotX": -5.968157E-08,
+        "rotX": -1.3932605E-06,
         "rotY": 147.961456,
         "rotZ": 180.0,
         "scaleX": 2.0,
@@ -5707,7 +5707,7 @@
       "Nickname": "Red Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.6701408,
+        "r": 0.670566,
         "g": 0.0,
         "b": 0.0
       },
@@ -5732,12 +5732,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -13.6588326,
-        "posY": 1.11140418,
-        "posZ": -19.8764458,
-        "rotX": -1.46907214E-05,
-        "rotY": 147.047943,
-        "rotZ": 179.999969,
+        "posX": -13.6588345,
+        "posY": 1.11140358,
+        "posZ": -19.87641,
+        "rotX": -1.15706944E-05,
+        "rotY": 147.040131,
+        "rotZ": 180.000031,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -5745,7 +5745,7 @@
       "Nickname": "Red Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.6701321,
+        "r": 0.6705573,
         "g": 0.0,
         "b": 0.0
       },
@@ -5770,12 +5770,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -13.62874,
-        "posY": 1.11140406,
-        "posZ": -22.0855389,
-        "rotX": 1.09330313E-05,
-        "rotY": 147.8086,
-        "rotZ": 180.000122,
+        "posX": -13.62879,
+        "posY": 1.11140382,
+        "posZ": -22.0854816,
+        "rotX": -7.239488E-05,
+        "rotY": 147.801376,
+        "rotZ": 180.0,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -5783,7 +5783,7 @@
       "Nickname": "Red Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.6701408,
+        "r": 0.670566,
         "g": 0.0,
         "b": 0.0
       },
@@ -5808,12 +5808,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 39.4393044,
-        "posY": 1.40318084,
-        "posZ": 6.53798532,
-        "rotX": 0.00426849537,
-        "rotY": 179.794739,
-        "rotZ": 1.23824906,
+        "posX": 39.4453735,
+        "posY": 1.403049,
+        "posZ": 6.54005527,
+        "rotX": 0.00179294054,
+        "rotY": 179.9091,
+        "rotZ": 1.23825645,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -5821,9 +5821,9 @@
       "Nickname": "Purple Parent",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.5241936,
+        "r": 0.5247359,
         "g": 0.0,
-        "b": 0.5241578
+        "b": 0.524700165
       },
       "Locked": false,
       "Grid": true,
@@ -5846,12 +5846,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 39.24673,
+        "posX": 39.2465439,
         "posY": 1.21780181,
-        "posZ": 20.3463974,
-        "rotX": 8.77216735E-07,
-        "rotY": 90.59417,
-        "rotZ": 6.042656E-07,
+        "posZ": 20.3463039,
+        "rotX": 4.171025E-07,
+        "rotY": 90.59423,
+        "rotZ": 1.577496E-06,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -5859,9 +5859,9 @@
       "Nickname": "Purple Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.5259163,
+        "r": 0.5264586,
         "g": 0.0,
-        "b": 0.486023128
+        "b": 0.486587554
       },
       "Locked": false,
       "Grid": true,
@@ -5884,12 +5884,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 40.1654129,
+        "posX": 40.165226,
         "posY": 1.21780169,
-        "posZ": 20.4047852,
-        "rotX": 0.000158546813,
-        "rotY": 269.93045,
-        "rotZ": 3.33292337E-06,
+        "posZ": 20.4047127,
+        "rotX": 0.000181667623,
+        "rotY": 269.922852,
+        "rotZ": 5.65404553E-05,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -5897,9 +5897,9 @@
       "Nickname": "Purple Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.541666865,
+        "r": 0.54219687,
         "g": 0.0,
-        "b": 0.480512083
+        "b": 0.481079
       },
       "Locked": false,
       "Grid": true,
@@ -5922,12 +5922,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 39.59361,
-        "posY": 0.986782849,
-        "posZ": 19.4066315,
-        "rotX": 8.749989E-08,
+        "posX": 39.5934219,
+        "posY": 0.9867828,
+        "posZ": 19.406538,
+        "rotX": 2.61170374E-08,
         "rotY": 359.942932,
-        "rotZ": -3.898726E-08,
+        "rotZ": 4.518723E-09,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -5935,9 +5935,9 @@
       "Nickname": "Purple Offspring",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.5235623,
+        "r": 0.524104655,
         "g": 0.0,
-        "b": 0.5158503
+        "b": 0.5163988
       },
       "Locked": false,
       "Grid": true,
@@ -5962,10 +5962,10 @@
       "Transform": {
         "posX": 41.0041275,
         "posY": 0.9867827,
-        "posZ": 19.36941,
-        "rotX": 1.102829E-07,
-        "rotY": 359.897247,
-        "rotZ": -6.874874E-09,
+        "posZ": 19.3693161,
+        "rotX": -4.28141078E-08,
+        "rotY": 359.9001,
+        "rotZ": 1.569446E-08,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -5973,9 +5973,9 @@
       "Nickname": "Purple Offspring",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.5259163,
+        "r": 0.5264586,
         "g": 0.0,
-        "b": 0.509388149
+        "b": 0.5099384
       },
       "Locked": false,
       "Grid": true,
@@ -5998,12 +5998,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 38.17575,
-        "posY": 1.217802,
-        "posZ": 20.327816,
-        "rotX": 5.01191425E-06,
-        "rotY": 75.14215,
-        "rotZ": 0.000137243318,
+        "posX": 38.17565,
+        "posY": 1.21780181,
+        "posZ": 20.3277969,
+        "rotX": 0.000325937,
+        "rotY": 75.15428,
+        "rotZ": -3.83721854E-05,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -6011,9 +6011,9 @@
       "Nickname": "Purple Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.5259163,
+        "r": 0.5264586,
         "g": 0.0,
-        "b": 0.498236924
+        "b": 0.498794466
       },
       "Locked": false,
       "Grid": true,
@@ -6037,11 +6037,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 38.2273979,
-        "posY": 0.9867828,
-        "posZ": 19.3933773,
-        "rotX": 1.88711547E-05,
-        "rotY": 359.821838,
-        "rotZ": -7.07210938E-06,
+        "posY": 0.98678267,
+        "posZ": 19.3932838,
+        "rotX": 2.0374875E-05,
+        "rotY": 359.818481,
+        "rotZ": -8.810377E-06,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -6049,9 +6049,9 @@
       "Nickname": "Purple Offspring",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.5238202,
+        "r": 0.5243625,
         "g": 0.0,
-        "b": 0.5226384
+        "b": 0.5231807
       },
       "Locked": false,
       "Grid": true,
@@ -6076,10 +6076,10 @@
       "Transform": {
         "posX": 40.98151,
         "posY": 1.21780181,
-        "posZ": 20.34655,
-        "rotX": 8.88300349E-07,
-        "rotY": 90.33126,
-        "rotZ": -1.34473669E-06,
+        "posZ": 20.3464565,
+        "rotX": 1.08454981E-06,
+        "rotY": 90.33153,
+        "rotZ": 7.939885E-07,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -6087,9 +6087,9 @@
       "Nickname": "Purple Stable",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.541179061,
+        "r": 0.541709,
         "g": 0.0,
-        "b": 0.461642683
+        "b": 0.462218881
       },
       "Locked": false,
       "Grid": true,
@@ -6112,11 +6112,11 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 41.96128,
-        "posY": 1.34871912,
-        "posZ": 6.47679949,
-        "rotX": 0.00147007569,
-        "rotY": 0.0850709751,
+        "posX": 41.96754,
+        "posY": 1.34858418,
+        "posZ": 6.47801876,
+        "rotX": 0.00296999654,
+        "rotY": 0.154286429,
         "rotZ": 358.7614,
         "scaleX": 0.5,
         "scaleY": 0.5,
@@ -6125,9 +6125,9 @@
       "Nickname": "Purple Parent",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.524784,
+        "r": 0.5253263,
         "g": 0.0,
-        "b": 0.5248444
+        "b": 0.5253867
       },
       "Locked": false,
       "Grid": true,
@@ -6151,11 +6151,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -18.9290771,
-        "posY": 1.45197821,
+        "posY": 1.45198143,
         "posZ": 21.8881512,
-        "rotX": -2.06805089E-05,
-        "rotY": 284.984222,
-        "rotZ": -0.000635329867,
+        "rotX": -1.21152325E-05,
+        "rotY": 284.984131,
+        "rotZ": -0.000392971851,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -6164,7 +6164,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.49084273,
+        "g": 0.49140352,
         "b": 0.0
       },
       "Locked": false,
@@ -6188,12 +6188,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -15.009119,
+        "posX": -15.0091,
         "posY": 0.9867827,
-        "posZ": 22.8942,
-        "rotX": 5.222916E-06,
-        "rotY": 14.9685907,
-        "rotZ": -8.954126E-06,
+        "posZ": 22.8941059,
+        "rotX": -5.31215937E-06,
+        "rotY": 14.9694529,
+        "rotZ": 8.9832E-06,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -6202,7 +6202,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.49084273,
+        "g": 0.49140352,
         "b": 0.0
       },
       "Locked": false,
@@ -6228,10 +6228,10 @@
       "Transform": {
         "posX": -15.1827106,
         "posY": 0.9867828,
-        "posZ": 20.3128948,
-        "rotX": 7.598993E-08,
-        "rotY": 359.898865,
-        "rotZ": 5.645112E-09,
+        "posZ": 20.3128014,
+        "rotX": 7.689597E-08,
+        "rotY": 359.901672,
+        "rotZ": -2.15512141E-08,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -6240,7 +6240,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.49084273,
+        "g": 0.49140352,
         "b": 0.0
       },
       "Locked": false,
@@ -6264,12 +6264,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -15.085743,
+        "posX": -15.0856981,
         "posY": 0.9867827,
-        "posZ": 21.63476,
-        "rotX": 4.16013336E-07,
-        "rotY": 14.92376,
-        "rotZ": -4.861431E-06,
+        "posZ": 21.6346664,
+        "rotX": 4.08715067E-07,
+        "rotY": 14.9267073,
+        "rotZ": -4.85471628E-06,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -6278,7 +6278,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.4908313,
+        "g": 0.491392076,
         "b": 0.0
       },
       "Locked": false,
@@ -6305,9 +6305,9 @@
         "posX": -18.8872261,
         "posY": 1.45197356,
         "posZ": 24.1928673,
-        "rotX": 6.283101E-05,
-        "rotY": 359.564728,
-        "rotZ": -0.000206250959,
+        "rotX": 6.314619E-05,
+        "rotY": 359.565765,
+        "rotZ": -0.000206211829,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -6316,7 +6316,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.49084273,
+        "g": 0.49140352,
         "b": 0.0
       },
       "Locked": false,
@@ -6340,12 +6340,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -13.9444628,
+        "posX": -13.9444447,
         "posY": 1.21780181,
-        "posZ": 23.0890713,
-        "rotX": 1.19568767E-06,
-        "rotY": 359.9379,
-        "rotZ": -4.99585951E-07,
+        "posZ": 23.0889778,
+        "rotX": 1.26262548E-05,
+        "rotY": 359.934235,
+        "rotZ": 1.26197374E-05,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -6354,7 +6354,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.49084273,
+        "g": 0.49140352,
         "b": 0.0
       },
       "Locked": false,
@@ -6378,12 +6378,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -14.0136461,
-        "posY": 1.21780181,
-        "posZ": 21.0310154,
-        "rotX": -3.47649575E-07,
-        "rotY": 0.07518554,
-        "rotZ": -8.848417E-07,
+        "posX": -14.0135994,
+        "posY": 1.217802,
+        "posZ": 21.03092,
+        "rotX": 1.17537866E-06,
+        "rotY": 0.0784881,
+        "rotZ": 6.258424E-08,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -6392,7 +6392,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.49084273,
+        "g": 0.49140352,
         "b": 0.0
       },
       "Locked": false,
@@ -6416,12 +6416,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -14.0040293,
-        "posY": 1.21780181,
-        "posZ": 22.06197,
-        "rotX": -6.484529E-07,
-        "rotY": 0.1391841,
-        "rotZ": -1.74912032E-06,
+        "posX": -14.0039988,
+        "posY": 1.21780157,
+        "posZ": 22.0618744,
+        "rotX": 2.90401622E-05,
+        "rotY": 0.143637523,
+        "rotZ": -7.122545E-05,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -6430,7 +6430,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.49084273,
+        "g": 0.49140352,
         "b": 0.0
       },
       "Locked": false,
@@ -6456,10 +6456,10 @@
       "Transform": {
         "posX": -14.0727215,
         "posY": 1.21780181,
-        "posZ": 20.02625,
-        "rotX": 4.72484544E-07,
-        "rotY": 0.0710825,
-        "rotZ": -3.57442559E-07,
+        "posZ": 20.0261574,
+        "rotX": 2.37755728E-07,
+        "rotY": 0.071047,
+        "rotZ": -1.299602E-06,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -6468,7 +6468,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.4908313,
+        "g": 0.491392076,
         "b": 0.0
       },
       "Locked": false,
@@ -6493,11 +6493,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 28.4934578,
-        "posY": 1.45199323,
+        "posY": 1.451997,
         "posZ": 23.9712219,
-        "rotX": -0.000108976485,
-        "rotY": 345.977875,
-        "rotZ": -0.000205278207,
+        "rotX": -9.07605863E-05,
+        "rotY": 345.978546,
+        "rotZ": -0.000125114952,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -6507,7 +6507,7 @@
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.729831
+        "b": 0.730194569
       },
       "Locked": false,
       "Grid": true,
@@ -6530,12 +6530,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 15.6469173,
-        "posY": 0.9867827,
-        "posZ": 23.3215561,
-        "rotX": 4.010587E-08,
-        "rotY": 359.974762,
-        "rotZ": 3.77901976E-08,
+        "posX": 15.6468716,
+        "posY": 0.986782849,
+        "posZ": 23.3214626,
+        "rotX": -1.36158212E-06,
+        "rotY": 359.974365,
+        "rotZ": 5.052742E-06,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -6545,7 +6545,7 @@
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.729831
+        "b": 0.730194569
       },
       "Locked": false,
       "Grid": true,
@@ -6568,12 +6568,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 15.5888824,
-        "posY": 0.9867828,
-        "posZ": 22.1297436,
-        "rotX": -5.142463E-08,
-        "rotY": 0.062783204,
-        "rotZ": 2.606428E-09,
+        "posX": 15.5888968,
+        "posY": 0.9867827,
+        "posZ": 22.12965,
+        "rotX": -3.46299167E-08,
+        "rotY": 0.06558883,
+        "rotZ": -7.06634538E-08,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -6583,7 +6583,7 @@
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.729831
+        "b": 0.730194569
       },
       "Locked": false,
       "Grid": true,
@@ -6606,12 +6606,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 15.5740509,
-        "posY": 0.9867827,
-        "posZ": 20.8968372,
-        "rotX": 1.25180918E-06,
-        "rotY": 359.942749,
-        "rotZ": 5.156683E-06,
+        "posX": 15.5740261,
+        "posY": 0.9867828,
+        "posZ": 20.89665,
+        "rotX": -2.73303885E-06,
+        "rotY": 359.946777,
+        "rotZ": 9.505228E-06,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -6621,7 +6621,7 @@
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.7298236
+        "b": 0.7301872
       },
       "Locked": false,
       "Grid": true,
@@ -6645,11 +6645,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 28.4272766,
-        "posY": 1.45198977,
+        "posY": 1.45198965,
         "posZ": 21.5052242,
-        "rotX": -0.000122409372,
-        "rotY": 0.0282192435,
-        "rotZ": -4.61556447E-05,
+        "rotX": -0.000119465622,
+        "rotY": 0.0282277949,
+        "rotZ": -4.613221E-05,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -6659,7 +6659,7 @@
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.729831
+        "b": 0.730194569
       },
       "Locked": false,
       "Grid": true,
@@ -6684,10 +6684,10 @@
       "Transform": {
         "posX": 14.6108732,
         "posY": 1.21780181,
-        "posZ": 23.3674488,
-        "rotX": -2.01752819E-08,
-        "rotY": 0.1619664,
-        "rotZ": 1.08896461E-06,
+        "posZ": 23.3673553,
+        "rotX": 1.35217135E-07,
+        "rotY": 0.1621188,
+        "rotZ": 4.0188857E-07,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -6697,7 +6697,7 @@
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.7298236
+        "b": 0.7301872
       },
       "Locked": false,
       "Grid": true,
@@ -6720,12 +6720,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 14.5594416,
-        "posY": 1.21780193,
-        "posZ": 22.4069252,
-        "rotX": 5.347769E-09,
-        "rotY": 180.095322,
-        "rotZ": -1.0684995E-06,
+        "posX": 14.5594234,
+        "posY": 1.21780181,
+        "posZ": 22.4068336,
+        "rotX": 2.35702464E-05,
+        "rotY": 180.100815,
+        "rotZ": 3.692749E-05,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -6735,7 +6735,7 @@
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.729831
+        "b": 0.730194569
       },
       "Locked": false,
       "Grid": true,
@@ -6758,12 +6758,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 14.5394478,
-        "posY": 1.21780157,
-        "posZ": 20.5009346,
-        "rotX": 1.27506546E-05,
-        "rotY": 179.937561,
-        "rotZ": 7.048385E-06,
+        "posX": 14.5394306,
+        "posY": 1.217802,
+        "posZ": 20.50084,
+        "rotX": -1.25284523E-05,
+        "rotY": 179.932755,
+        "rotZ": 4.913893E-05,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -6773,7 +6773,7 @@
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.729831
+        "b": 0.730194569
       },
       "Locked": false,
       "Grid": true,
@@ -6796,12 +6796,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 14.5469618,
-        "posY": 1.21780181,
-        "posZ": 21.4449177,
-        "rotX": 3.07460177E-05,
-        "rotY": 180.080917,
-        "rotZ": -7.09367159E-05,
+        "posX": 14.5469427,
+        "posY": 1.21780157,
+        "posZ": 21.4448261,
+        "rotX": 6.81774168E-07,
+        "rotY": 180.08606,
+        "rotZ": -8.11773646E-07,
         "scaleX": 2.0,
         "scaleY": 2.0,
         "scaleZ": 2.0
@@ -6811,7 +6811,7 @@
       "ColorDiffuse": {
         "r": 0.0,
         "g": 0.0156862754,
-        "b": 0.729831
+        "b": 0.730194569
       },
       "Locked": false,
       "Grid": true,
@@ -6847,9 +6847,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7869247,
-        "g": 0.7869247,
-        "b": 0.7869247
+        "r": 0.7870726,
+        "g": 0.7870726,
+        "b": 0.7870726
       },
       "Locked": true,
       "Grid": true,
@@ -6868,11 +6868,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 29.1070786,
-        "posY": 1.56204176,
-        "posZ": 0.361501068,
-        "rotX": 4.085835E-06,
-        "rotY": 0.0406691767,
-        "rotZ": -3.1113188E-05,
+        "posY": 1.562042,
+        "posZ": 0.3615236,
+        "rotX": 3.11402641E-06,
+        "rotY": 0.04389331,
+        "rotZ": -3.28236747E-05,
         "scaleX": 3.0,
         "scaleY": 3.0,
         "scaleZ": 3.0
@@ -6881,8 +6881,8 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
-        "g": 0.988255143,
-        "b": 0.192757592
+        "g": 0.9882736,
+        "b": 0.193318382
       },
       "Locked": false,
       "Grid": true,
@@ -6908,8 +6908,8 @@
         "posX": 12.2864513,
         "posY": 0.9189708,
         "posZ": 5.08159447,
-        "rotX": 1.836265E-05,
-        "rotY": 180.013916,
+        "rotX": 1.83626671E-05,
+        "rotY": 180.014664,
         "rotZ": 3.84768246E-05,
         "scaleX": 0.375,
         "scaleY": 0.375,
@@ -6918,9 +6918,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7869247,
-        "g": 0.7869247,
-        "b": 0.7869247
+        "r": 0.7870726,
+        "g": 0.7870726,
+        "b": 0.7870726
       },
       "Locked": true,
       "Grid": true,
@@ -6955,7 +6955,7 @@
         "posY": 0.97031045,
         "posZ": -20.5953655,
         "rotX": -3.872994E-05,
-        "rotY": 180.002151,
+        "rotY": 180.002213,
         "rotZ": -1.66017443E-07,
         "scaleX": 0.375,
         "scaleY": 0.375,
@@ -6964,9 +6964,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7869247,
-        "g": 0.7869247,
-        "b": 0.7869247
+        "r": 0.7870726,
+        "g": 0.7870726,
+        "b": 0.7870726
       },
       "Locked": true,
       "Grid": true,
@@ -6997,9 +6997,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.78693074,
-        "g": 0.78693074,
-        "b": 0.78693074
+        "r": 0.7870786,
+        "g": 0.7870786,
+        "b": 0.7870786
       },
       "Locked": true,
       "Grid": true,
@@ -7030,9 +7030,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7869277,
-        "g": 0.7869277,
-        "b": 0.7869277
+        "r": 0.787075639,
+        "g": 0.787075639,
+        "b": 0.787075639
       },
       "Locked": true,
       "Grid": true,
@@ -7063,9 +7063,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7869277,
-        "g": 0.7869277,
-        "b": 0.7869277
+        "r": 0.787075639,
+        "g": 0.787075639,
+        "b": 0.787075639
       },
       "Locked": true,
       "Grid": true,
@@ -7096,9 +7096,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7869277,
-        "g": 0.7869277,
-        "b": 0.7869277
+        "r": 0.787075639,
+        "g": 0.787075639,
+        "b": 0.787075639
       },
       "Locked": true,
       "Grid": true,
@@ -7129,9 +7129,9 @@
       "Nickname": "Scoring Reference",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7869247,
-        "g": 0.7869247,
-        "b": 0.7869247
+        "r": 0.7870726,
+        "g": 0.7870726,
+        "b": 0.7870726
       },
       "Locked": true,
       "Grid": true,
@@ -7162,9 +7162,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.78691566,
-        "g": 0.78691566,
-        "b": 0.78691566
+        "r": 0.787063539,
+        "g": 0.787063539,
+        "b": 0.787063539
       },
       "Locked": true,
       "Grid": true,
@@ -7195,9 +7195,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.78691566,
-        "g": 0.78691566,
-        "b": 0.78691566
+        "r": 0.787063539,
+        "g": 0.787063539,
+        "b": 0.787063539
       },
       "Locked": true,
       "Grid": true,
@@ -7217,8 +7217,8 @@
       "Transform": {
         "posX": 29.1229954,
         "posY": 0.978273749,
-        "posZ": -0.7845247,
-        "rotX": -3.13991961E-08,
+        "posZ": -0.784521759,
+        "rotX": -5.33942419E-08,
         "rotY": 179.733841,
         "rotZ": 180.0,
         "scaleX": 0.5,
@@ -7229,7 +7229,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921729,
+        "g": 0.992185235,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7255,8 +7255,8 @@
       "Transform": {
         "posX": 27.94071,
         "posY": 0.978273749,
-        "posZ": -0.7843657,
-        "rotX": -3.30469948E-06,
+        "posZ": -0.7843599,
+        "rotX": -3.19560741E-06,
         "rotY": 179.778442,
         "rotZ": 180.0,
         "scaleX": 0.5,
@@ -7267,7 +7267,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921732,
+        "g": 0.9921855,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7291,12 +7291,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 27.8728275,
+        "posX": 27.8727341,
         "posY": 0.9867828,
-        "posZ": 0.38419944,
-        "rotX": 3.33256162E-06,
-        "rotY": 0.2359095,
-        "rotZ": 9.561034E-06,
+        "posZ": 0.384202182,
+        "rotX": 3.07939422E-06,
+        "rotY": 0.236058518,
+        "rotZ": 9.716049E-06,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
@@ -7305,7 +7305,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921732,
+        "g": 0.9921855,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7330,11 +7330,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 19.60273,
-        "posY": 1.37393057,
+        "posY": 1.37392688,
         "posZ": -21.5380135,
-        "rotX": 0.0002916622,
-        "rotY": -0.00393433636,
-        "rotZ": 5.56835475E-05,
+        "rotX": 0.000221289549,
+        "rotY": -0.003517535,
+        "rotZ": 0.000154369453,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7343,7 +7343,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.992173433,
+        "g": 0.9921858,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7368,11 +7368,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 19.52684,
-        "posY": 1.37393272,
+        "posY": 1.3739295,
         "posZ": -24.01207,
-        "rotX": 0.000205968186,
-        "rotY": 0.06279827,
-        "rotZ": 4.04253224E-05,
+        "rotX": 0.000273244281,
+        "rotY": 0.0623216666,
+        "rotZ": 1.03171988E-06,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7381,7 +7381,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.992173433,
+        "g": 0.9921858,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7406,11 +7406,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -27.2081013,
-        "posY": 1.03146827,
+        "posY": 1.031465,
         "posZ": -21.3883152,
-        "rotX": 0.000240719673,
-        "rotY": -0.000358933874,
-        "rotZ": 4.61470554E-05,
+        "rotX": 0.00026373117,
+        "rotY": -0.00106817088,
+        "rotZ": 4.980747E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7419,7 +7419,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921732,
+        "g": 0.9921855,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7444,11 +7444,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -27.2028446,
-        "posY": 1.0314697,
+        "posY": 1.03146625,
         "posZ": -23.9897652,
-        "rotX": 0.000231779821,
-        "rotY": 0.0197477881,
-        "rotZ": 4.31765839E-05,
+        "rotX": 0.000302985747,
+        "rotY": 0.018948162,
+        "rotZ": 4.30595137E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7457,7 +7457,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921732,
+        "g": 0.9921855,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7481,12 +7481,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 39.43282,
-        "posY": 1.32524455,
-        "posZ": 6.585021,
-        "rotX": 0.00302768475,
-        "rotY": 0.149611637,
-        "rotZ": 358.760773,
+        "posX": 39.4349442,
+        "posY": 1.32519948,
+        "posZ": 6.586964,
+        "rotX": 0.00606705155,
+        "rotY": 0.290832818,
+        "rotZ": 358.760742,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7495,7 +7495,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921732,
+        "g": 0.9921855,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7519,12 +7519,12 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": 41.94833,
-        "posY": 1.27092612,
-        "posZ": 6.483038,
-        "rotX": 0.003233504,
-        "rotY": 0.155492589,
-        "rotZ": 358.7608,
+        "posX": 41.95028,
+        "posY": 1.27088392,
+        "posZ": 6.484945,
+        "rotX": 0.006363839,
+        "rotY": 0.300084651,
+        "rotZ": 358.760834,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7533,7 +7533,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.992173433,
+        "g": 0.9921858,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7558,11 +7558,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -18.9760017,
-        "posY": 1.37392259,
+        "posY": 1.37391984,
         "posZ": 21.6723633,
-        "rotX": 0.000115357972,
-        "rotY": 0.0308303833,
-        "rotZ": 2.06426139E-05,
+        "rotX": 0.0003551371,
+        "rotY": 0.0301228464,
+        "rotZ": -4.26164843E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7571,7 +7571,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.992173433,
+        "g": 0.9921858,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7596,11 +7596,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -18.89406,
-        "posY": 1.37392,
+        "posY": 1.37392008,
         "posZ": 24.08202,
-        "rotX": 0.00021962692,
-        "rotY": 0.0113352472,
-        "rotZ": 4.14377246E-05,
+        "rotX": 0.00021990831,
+        "rotY": 0.009934223,
+        "rotZ": 4.14380956E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7609,7 +7609,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.992173433,
+        "g": 0.9921858,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7636,9 +7636,9 @@
         "posX": 28.4611683,
         "posY": 1.37393546,
         "posZ": 21.5102844,
-        "rotX": 0.000164337485,
-        "rotY": 0.0167329852,
-        "rotZ": 4.894713E-05,
+        "rotX": 0.000167426333,
+        "rotY": 0.0161095839,
+        "rotZ": 4.8963484E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7647,7 +7647,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.9921732,
+        "g": 0.9921855,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7672,11 +7672,11 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": 28.483902,
-        "posY": 1.373938,
+        "posY": 1.373935,
         "posZ": 23.9787464,
-        "rotX": 0.000146730192,
-        "rotY": 359.994263,
-        "rotZ": 4.501621E-05,
+        "rotX": 0.000140292759,
+        "rotY": -0.005727692,
+        "rotZ": 5.452022E-06,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -7685,7 +7685,7 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.9999999,
-        "g": 0.992173433,
+        "g": 0.9921858,
         "b": 0.9999999
       },
       "Locked": false,
@@ -7709,11 +7709,11 @@
     {
       "Name": "DeckCustom",
       "Transform": {
-        "posX": 28.4609356,
+        "posX": 28.4610271,
         "posY": 1.03691447,
-        "posZ": -3.69736719,
-        "rotX": 1.240024E-06,
-        "rotY": 179.955551,
+        "posZ": -3.697321,
+        "rotX": 1.308883E-06,
+        "rotY": 179.955582,
         "rotZ": 180.000015,
         "scaleX": 1.0,
         "scaleY": 1.0,
@@ -7722,9 +7722,9 @@
       "Nickname": "Begging Cards Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7134185,
-        "g": 0.7134185,
-        "b": 0.7134185
+        "r": 0.7136095,
+        "g": 0.7136095,
+        "b": 0.7136095
       },
       "Locked": false,
       "Grid": true,
@@ -7911,12 +7911,12 @@
     {
       "Name": "Card",
       "Transform": {
-        "posX": 6.681951,
-        "posY": 1.34303486,
+        "posX": 6.68193674,
+        "posY": 1.34303391,
         "posZ": 7.17948246,
-        "rotX": 1.88615249E-05,
-        "rotY": 180.001,
-        "rotZ": 3.69489E-05,
+        "rotX": 1.4127475E-05,
+        "rotY": 180.0011,
+        "rotZ": 3.861106E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -7924,9 +7924,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7134224,
-        "g": 0.7134224,
-        "b": 0.7134224
+        "r": 0.713613451,
+        "g": 0.713613451,
+        "b": 0.713613451
       },
       "Locked": false,
       "Grid": true,
@@ -7951,11 +7951,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 17.8977242,
-        "posY": 1.34302735,
+        "posY": 1.3430264,
         "posZ": 7.30535173,
-        "rotX": 2.09936152E-05,
-        "rotY": 180.00061,
-        "rotZ": 3.8449838E-05,
+        "rotX": 1.69824034E-05,
+        "rotY": 180.000778,
+        "rotZ": 3.89743473E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -7963,9 +7963,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7134224,
-        "g": 0.7134224,
-        "b": 0.7134224
+        "r": 0.713613451,
+        "g": 0.713613451,
+        "b": 0.713613451
       },
       "Locked": false,
       "Grid": true,
@@ -7989,12 +7989,12 @@
     {
       "Name": "Card",
       "Transform": {
-        "posX": 6.712068,
-        "posY": 1.34303319,
-        "posZ": 2.61190557,
-        "rotX": 2.32425737E-05,
-        "rotY": 179.993958,
-        "rotZ": 3.869011E-05,
+        "posX": 6.712048,
+        "posY": 1.34303308,
+        "posZ": 2.61190176,
+        "rotX": 1.27284375E-05,
+        "rotY": 179.994339,
+        "rotZ": 3.83964943E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8002,9 +8002,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7134224,
-        "g": 0.7134224,
-        "b": 0.7134224
+        "r": 0.713613451,
+        "g": 0.713613451,
+        "b": 0.713613451
       },
       "Locked": false,
       "Grid": true,
@@ -8030,10 +8030,10 @@
       "Transform": {
         "posX": 12.411891,
         "posY": 1.34302938,
-        "posZ": 2.62121868,
-        "rotX": 2.57405754E-05,
-        "rotY": 180.000717,
-        "rotZ": 3.86502361E-05,
+        "posZ": 2.621212,
+        "rotX": 1.68175E-05,
+        "rotY": 180.001526,
+        "rotZ": 3.88252E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8041,9 +8041,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7134224,
-        "g": 0.7134224,
-        "b": 0.7134224
+        "r": 0.713613451,
+        "g": 0.713613451,
+        "b": 0.713613451
       },
       "Locked": false,
       "Grid": true,
@@ -8069,10 +8069,10 @@
       "Transform": {
         "posX": 17.8814621,
         "posY": 1.34302568,
-        "posZ": 2.61081362,
-        "rotX": 2.54669176E-05,
-        "rotY": 179.996948,
-        "rotZ": 3.82666658E-05,
+        "posZ": 2.61080575,
+        "rotX": 1.14280429E-05,
+        "rotY": 179.997421,
+        "rotZ": 3.80170131E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8080,9 +8080,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7134224,
-        "g": 0.7134224,
-        "b": 0.7134224
+        "r": 0.713613451,
+        "g": 0.713613451,
+        "b": 0.713613451
       },
       "Locked": false,
       "Grid": true,
@@ -8107,11 +8107,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 9.592285,
-        "posY": 1.34303117,
-        "posZ": 2.62482285,
-        "rotX": 2.63005677E-05,
-        "rotY": 180.000626,
-        "rotZ": 3.856315E-05,
+        "posY": 1.34303141,
+        "posZ": 2.62481666,
+        "rotX": 1.0898515E-05,
+        "rotY": 180.00148,
+        "rotZ": 3.873596E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8119,9 +8119,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7134224,
-        "g": 0.7134224,
-        "b": 0.7134224
+        "r": 0.713613451,
+        "g": 0.713613451,
+        "b": 0.713613451
       },
       "Locked": false,
       "Grid": true,
@@ -8146,11 +8146,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 15.1133995,
-        "posY": 1.34302926,
+        "posY": 1.34302843,
         "posZ": 7.29298449,
-        "rotX": 2.45077335E-05,
-        "rotY": 180.001434,
-        "rotZ": 3.8381695E-05,
+        "rotX": 1.33117228E-05,
+        "rotY": 180.002182,
+        "rotZ": 3.853271E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8158,9 +8158,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7134224,
-        "g": 0.7134224,
-        "b": 0.7134224
+        "r": 0.713613451,
+        "g": 0.713613451,
+        "b": 0.713613451
       },
       "Locked": false,
       "Grid": true,
@@ -8185,11 +8185,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 9.502715,
-        "posY": 1.343033,
+        "posY": 1.34303212,
         "posZ": 7.29807472,
-        "rotX": 2.19291614E-05,
+        "rotX": 1.48864374E-05,
         "rotY": 179.996,
-        "rotZ": 3.86445827E-05,
+        "rotZ": 3.8367496E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8197,9 +8197,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7134224,
-        "g": 0.7134224,
-        "b": 0.7134224
+        "r": 0.713613451,
+        "g": 0.713613451,
+        "b": 0.713613451
       },
       "Locked": false,
       "Grid": true,
@@ -8224,11 +8224,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 12.3197689,
-        "posY": 1.34303117,
+        "posY": 1.34303021,
         "posZ": 7.312429,
-        "rotX": 2.13156654E-05,
+        "rotX": 1.57434279E-05,
         "rotY": 179.996536,
-        "rotZ": 3.859858E-05,
+        "rotZ": 3.832526E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8236,9 +8236,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7134224,
-        "g": 0.7134224,
-        "b": 0.7134224
+        "r": 0.713613451,
+        "g": 0.713613451,
+        "b": 0.713613451
       },
       "Locked": false,
       "Grid": true,
@@ -8263,11 +8263,11 @@
       "Name": "Card",
       "Transform": {
         "posX": 15.1417818,
-        "posY": 1.34302759,
-        "posZ": 2.59690857,
-        "rotX": 2.050345E-05,
-        "rotY": 179.996353,
-        "rotZ": 3.85756648E-05,
+        "posY": 1.34302747,
+        "posZ": 2.596901,
+        "rotX": 1.13828946E-05,
+        "rotY": 179.996826,
+        "rotZ": 3.88139742E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -8275,9 +8275,9 @@
       "Nickname": "",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7134224,
-        "g": 0.7134224,
-        "b": 0.7134224
+        "r": 0.713613451,
+        "g": 0.713613451,
+        "b": 0.713613451
       },
       "Locked": false,
       "Grid": true,
@@ -8314,9 +8314,9 @@
       "Nickname": "Game Stages Card",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7134146,
-        "g": 0.7134146,
-        "b": 0.7134146
+        "r": 0.713605642,
+        "g": 0.713605642,
+        "b": 0.713605642
       },
       "Locked": true,
       "Grid": true,
@@ -8353,9 +8353,9 @@
       "Nickname": "Game Stages Card",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7134146,
-        "g": 0.7134146,
-        "b": 0.7134146
+        "r": 0.713605642,
+        "g": 0.713605642,
+        "b": 0.713605642
       },
       "Locked": true,
       "Grid": true,
@@ -8380,11 +8380,11 @@
       "Name": "Infinite_Bag",
       "Transform": {
         "posX": 25.421011,
-        "posY": 0.9960487,
+        "posY": 0.996048331,
         "posZ": -3.946648,
-        "rotX": -3.495227E-06,
-        "rotY": 90.00402,
-        "rotZ": 3.25517831E-05,
+        "rotX": -3.495403E-06,
+        "rotY": 90.00489,
+        "rotZ": 3.25520523E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8394,7 +8394,7 @@
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.9980269,
-        "b": 0.9960809
+        "b": 0.996084
       },
       "Locked": true,
       "Grid": true,
@@ -8452,9 +8452,9 @@
         "posX": 25.2413788,
         "posY": 1.56633687,
         "posZ": -7.401827,
-        "rotX": 6.02048476E-06,
+        "rotX": 6.020566E-06,
         "rotY": 90.00111,
-        "rotZ": -1.76766935E-05,
+        "rotZ": -1.76768153E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8522,9 +8522,9 @@
         "posX": 25.1792049,
         "posY": 1.11621153,
         "posZ": -10.3512125,
-        "rotX": 2.254475E-07,
-        "rotY": 90.00365,
-        "rotZ": 2.994184E-06,
+        "rotX": 2.25435684E-07,
+        "rotY": 90.00449,
+        "rotZ": 2.99421981E-06,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8532,8 +8532,8 @@
       "Nickname": "Cattle",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.478746,
-        "g": 0.272089154,
+        "r": 0.479029477,
+        "g": 0.272388041,
         "b": 0.0
       },
       "Locked": true,
@@ -8602,8 +8602,8 @@
       "Nickname": "Wood",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.473058134,
-        "g": 0.298719585,
+        "r": 0.473344237,
+        "g": 0.299021572,
         "b": 0.0
       },
       "Locked": true,
@@ -8660,11 +8660,11 @@
       "Name": "Infinite_Bag",
       "Transform": {
         "posX": 21.9008579,
-        "posY": 1.4320128,
+        "posY": 1.43201268,
         "posZ": 2.58793449,
-        "rotX": 4.23556457E-07,
-        "rotY": 90.00232,
-        "rotZ": 1.64229755E-06,
+        "rotX": 4.23551626E-07,
+        "rotY": 90.0032,
+        "rotZ": 1.642317E-06,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8672,8 +8672,8 @@
       "Nickname": "Clay",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.92945236,
-        "g": 0.369716525,
+        "r": 0.929504752,
+        "g": 0.370018482,
         "b": 0.0392156877
       },
       "Locked": true,
@@ -8730,11 +8730,11 @@
       "Name": "Infinite_Bag",
       "Transform": {
         "posX": 21.9768143,
-        "posY": 1.20856881,
+        "posY": 1.20856869,
         "posZ": -0.336060971,
-        "rotX": -2.12087925E-05,
-        "rotY": 90.00207,
-        "rotZ": 3.60049944E-06,
+        "rotX": -2.12090381E-05,
+        "rotY": 90.00293,
+        "rotZ": 3.60044578E-06,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8802,9 +8802,9 @@
         "posX": 22.1902924,
         "posY": 1.01473176,
         "posZ": -3.546291,
-        "rotX": 2.78677162E-05,
-        "rotY": 90.00214,
-        "rotZ": 6.564486E-06,
+        "rotX": 2.78679527E-05,
+        "rotY": 90.003,
+        "rotZ": 6.56465863E-06,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8814,7 +8814,7 @@
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.9960808
+        "b": 0.9960839
       },
       "Locked": true,
       "Grid": true,
@@ -8870,11 +8870,11 @@
       "Name": "Infinite_Bag",
       "Transform": {
         "posX": 22.2177811,
-        "posY": 1.06993032,
+        "posY": 1.06993043,
         "posZ": -6.92142725,
-        "rotX": 3.47926944E-05,
+        "rotX": 3.47929672E-05,
         "rotY": 89.99922,
-        "rotZ": -1.561626E-05,
+        "rotZ": -1.56164533E-05,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8884,7 +8884,7 @@
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.188451558
+        "b": 0.188730419
       },
       "Locked": true,
       "Grid": true,
@@ -8942,9 +8942,9 @@
         "posX": 22.121376,
         "posY": 1.03996181,
         "posZ": -10.1665783,
-        "rotX": -3.794121E-06,
+        "rotX": -3.79415087E-06,
         "rotY": 89.9989243,
-        "rotZ": 4.825939E-06,
+        "rotZ": 4.825995E-06,
         "scaleX": 1.25,
         "scaleY": 1.25,
         "scaleZ": 1.25
@@ -8953,8 +8953,8 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
-        "g": 0.6717689,
-        "b": 0.188451543
+        "g": 0.671980858,
+        "b": 0.1887304
       },
       "Locked": true,
       "Grid": true,
@@ -9024,7 +9024,7 @@
       "ColorDiffuse": {
         "r": 0.99999994,
         "g": 0.99999994,
-        "b": 0.6589931
+        "b": 0.6592113
       },
       "Locked": true,
       "Grid": true,
@@ -9082,8 +9082,8 @@
         "posX": 45.0096779,
         "posY": 1.05177462,
         "posZ": -2.67369366,
-        "rotX": 1.27648509,
-        "rotY": 0.05381632,
+        "rotX": 1.27650118,
+        "rotY": 0.0538169034,
         "rotZ": 359.3751,
         "scaleX": 1.0,
         "scaleY": 1.0,
@@ -9092,9 +9092,9 @@
       "Nickname": "Game Stages Card",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7134185,
-        "g": 0.7134185,
-        "b": 0.7134185
+        "r": 0.7136095,
+        "g": 0.7136095,
+        "b": 0.7136095
       },
       "Locked": true,
       "Grid": true,
@@ -9121,9 +9121,9 @@
         "posX": -62.4948235,
         "posY": 0.349156231,
         "posZ": 6.97405243,
-        "rotX": -0.00101527339,
+        "rotX": -0.0010152891,
         "rotY": 359.377319,
-        "rotZ": 0.000206140627,
+        "rotZ": 0.00020614278,
         "scaleX": 0.625,
         "scaleY": 0.625,
         "scaleZ": 0.625
@@ -9131,9 +9131,9 @@
       "Nickname": "Scoring Reference",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7869277,
-        "g": 0.7869277,
-        "b": 0.7869277
+        "r": 0.787075639,
+        "g": 0.787075639,
+        "b": 0.787075639
       },
       "Locked": true,
       "Grid": true,
@@ -9151,12 +9151,12 @@
     {
       "Name": "Deck",
       "Transform": {
-        "posX": 0.419738084,
-        "posY": 1.28195727,
-        "posZ": -8.297512,
-        "rotX": 359.8948,
-        "rotY": 180.137787,
-        "rotZ": 180.631943,
+        "posX": 0.43158,
+        "posY": 1.28181815,
+        "posZ": -8.292787,
+        "rotX": 359.8927,
+        "rotY": 180.328461,
+        "rotZ": 180.631577,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -9164,9 +9164,9 @@
       "Nickname": "Stage 1 Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133912,
-        "g": 0.7133912,
-        "b": 0.7133912
+        "r": 0.7135823,
+        "g": 0.7135823,
+        "b": 0.7135823
       },
       "Locked": false,
       "Grid": true,
@@ -9204,7 +9204,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]Bake[/b] and/or [b]Sow[/b]",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9218,7 +9218,7 @@
           "Sticky": true,
           "CardID": 2103,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = {}",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -9235,7 +9235,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]Fences[/b] (1 wood / fence)",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.71325475,
@@ -9258,7 +9258,7 @@
               "BackIsHidden": false
             }
           },
-          "LuaScript": "",
+          "LuaScript": "resources = {}",
           "GUID": "56ce2c"
         },
         {
@@ -9274,7 +9274,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]1 Sheep[/b] / round",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9288,7 +9288,7 @@
           "Sticky": true,
           "CardID": 2102,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = { Sheep = 1 }",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -9305,7 +9305,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "1 Major or 1 Minor [b]Improvement[/b]",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9319,7 +9319,7 @@
           "Sticky": true,
           "CardID": 2101,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = {}",
           "ContainedObjects": [],
           "GUID": ""
         }
@@ -9329,12 +9329,12 @@
     {
       "Name": "Deck",
       "Transform": {
-        "posX": 3.43598247,
-        "posY": 1.24875915,
-        "posZ": -8.0494175,
-        "rotX": 359.8947,
-        "rotY": 180.1436,
-        "rotZ": 180.631943,
+        "posX": 3.44781065,
+        "posY": 1.24862075,
+        "posZ": -8.044695,
+        "rotX": 359.8926,
+        "rotY": 180.334351,
+        "rotZ": 180.631577,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -9342,9 +9342,9 @@
       "Nickname": "Stage 2 Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133912,
-        "g": 0.7133912,
-        "b": 0.7133912
+        "r": 0.7135823,
+        "g": 0.7135823,
+        "b": 0.7135823
       },
       "Locked": false,
       "Grid": true,
@@ -9381,7 +9381,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "After [b]Renovation[/b] also 1 Major or 1 Minor [b]Improvement[/b]",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9395,7 +9395,7 @@
           "Sticky": true,
           "CardID": 1405,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = {}",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -9412,7 +9412,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]1 Stone[/b] / round",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9426,7 +9426,7 @@
           "Sticky": true,
           "CardID": 1406,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = { Stone = 1 }",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -9443,7 +9443,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "After [b]Family growth[/b] also 1 Minor [b]Improvement[/b]",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9457,7 +9457,7 @@
           "Sticky": true,
           "CardID": 1404,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = {}",
           "ContainedObjects": [],
           "GUID": ""
         }
@@ -9470,7 +9470,7 @@
         "posX": 7.55944,
         "posY": 1.2157166,
         "posZ": -8.03801,
-        "rotX": -1.37515372E-05,
+        "rotX": -1.63960012E-05,
         "rotY": 180.000381,
         "rotZ": 180.0,
         "scaleX": 1.0,
@@ -9480,9 +9480,9 @@
       "Nickname": "Stage 3 Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133912,
-        "g": 0.7133912,
-        "b": 0.7133912
+        "r": 0.7135823,
+        "g": 0.7135823,
+        "b": 0.7135823
       },
       "Locked": false,
       "Grid": true,
@@ -9518,7 +9518,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]Take 1 Vegetable[/b] and place it in your personal supply",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9532,7 +9532,7 @@
           "Sticky": true,
           "CardID": 1408,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = {}",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -9549,7 +9549,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]1 Wild boar[/b] / round",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9563,7 +9563,7 @@
           "Sticky": true,
           "CardID": 1407,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = { Boar = 1 }",
           "ContainedObjects": [],
           "GUID": ""
         }
@@ -9576,8 +9576,8 @@
         "posX": 10.5654831,
         "posY": 1.2157166,
         "posZ": -8.035828,
-        "rotX": -1.80901843E-05,
-        "rotY": 180.000412,
+        "rotX": -1.26998539E-05,
+        "rotY": 180.000748,
         "rotZ": 180.0,
         "scaleX": 1.0,
         "scaleY": 1.0,
@@ -9586,9 +9586,9 @@
       "Nickname": "Stage 4 Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133912,
-        "g": 0.7133912,
-        "b": 0.7133912
+        "r": 0.7135823,
+        "g": 0.7135823,
+        "b": 0.7135823
       },
       "Locked": false,
       "Grid": true,
@@ -9624,7 +9624,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]1 Stone[/b] / round",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9638,7 +9638,7 @@
           "Sticky": true,
           "CardID": 1410,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = { Stone = 1 }",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -9655,7 +9655,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]1 Cattle[/b] / round",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9669,7 +9669,7 @@
           "Sticky": true,
           "CardID": 1409,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = { Stone = 1 }",
           "ContainedObjects": [],
           "GUID": ""
         }
@@ -9682,8 +9682,8 @@
         "posX": 13.5698023,
         "posY": 1.21571648,
         "posZ": -7.92842054,
-        "rotX": -1.65862675E-05,
-        "rotY": 180.00029,
+        "rotX": -1.75155656E-05,
+        "rotY": 180.000366,
         "rotZ": 180.0,
         "scaleX": 1.0,
         "scaleY": 1.0,
@@ -9692,9 +9692,9 @@
       "Nickname": "Stage 5 Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133912,
-        "g": 0.7133912,
-        "b": 0.7133912
+        "r": 0.7135823,
+        "g": 0.7135823,
+        "b": 0.7135823
       },
       "Locked": false,
       "Grid": true,
@@ -9730,7 +9730,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]Family growth[/b] even without space in your home",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9744,7 +9744,7 @@
           "Sticky": true,
           "CardID": 1411,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = {}",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -9761,7 +9761,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]Plow 1 field[/b] and/or [b]Sow[/b]",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9775,7 +9775,7 @@
           "Sticky": true,
           "CardID": 1412,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = {}",
           "ContainedObjects": [],
           "GUID": ""
         }
@@ -9787,20 +9787,20 @@
       "Transform": {
         "posX": 16.707428,
         "posY": 1.20532107,
-        "posZ": -3.49776721,
-        "rotX": -1.80340739E-05,
-        "rotY": 180.005875,
+        "posZ": -3.49776268,
+        "rotX": -1.64921E-05,
+        "rotY": 180.006516,
         "rotZ": 180.0,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
       },
-      "Nickname": "Stage 6 Card",
+      "Nickname": "After [b]Renovation[/b] also [b]Fences[/b] 1 Wood per fence",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133951,
-        "g": 0.7133951,
-        "b": 0.7133951
+        "r": 0.713586152,
+        "g": 0.713586152,
+        "b": 0.713586152
       },
       "Locked": false,
       "Grid": true,
@@ -9818,7 +9818,7 @@
           "BackIsHidden": false
         }
       },
-      "LuaScript": "",
+      "LuaScript": "resources = {}",
       "GUID": "5fecc8"
     },
     {
@@ -9826,10 +9826,10 @@
       "Transform": {
         "posX": -16.806633,
         "posY": 1.02957416,
-        "posZ": -9.124248,
-        "rotX": -9.11432267E-07,
-        "rotY": 180.00235,
-        "rotZ": 1.5326998E-06,
+        "posZ": -9.124166,
+        "rotX": -9.690258E-07,
+        "rotY": 180.005127,
+        "rotZ": -1.28507139E-07,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -9837,9 +9837,9 @@
       "Nickname": "Action cards for 5 player game",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133795,
-        "g": 0.7133795,
-        "b": 0.7133795
+        "r": 0.713570535,
+        "g": 0.713570535,
+        "b": 0.713570535
       },
       "Locked": false,
       "Grid": true,
@@ -9879,7 +9879,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]Build 1 Room[/b] or [b]Traveling Players[/b] 1 food / round",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9893,7 +9893,7 @@
           "Sticky": true,
           "CardID": 1914,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = { Food = 1 }",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -9910,7 +9910,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]4 Wood[/b] / round",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9924,7 +9924,7 @@
           "Sticky": true,
           "CardID": 1913,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = { Wood = 4 }",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -9941,7 +9941,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]3 Clay[/b] / round",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9955,7 +9955,7 @@
           "Sticky": true,
           "CardID": 1912,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = { Clay = 3 }",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -9972,7 +9972,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "either [b]1 Occupation[/b] Or, from Round 5, [b]Family growth[/b]",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -9986,7 +9986,7 @@
           "Sticky": true,
           "CardID": 1908,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = {}",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -10003,7 +10003,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]Take 1 Sheep and 1 Food[/b] Or [b]Take 1 Wild boar[/b] Or [b]Pay 1 Food for 1 Cattle[/b]",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -10017,7 +10017,7 @@
           "Sticky": true,
           "CardID": 1904,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = {}",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -10034,7 +10034,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]1 Reed[/b] / round In addition, take [b]1 Stone and 1 Wood[/b] and place them in your personal supply",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -10048,7 +10048,7 @@
           "Sticky": true,
           "CardID": 1902,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = { Reed = 1 }",
           "ContainedObjects": [],
           "GUID": ""
         }
@@ -10059,11 +10059,11 @@
       "Name": "Bag",
       "Transform": {
         "posX": 52.7254257,
-        "posY": 0.521114051,
+        "posY": 0.5211244,
         "posZ": -11.6641788,
-        "rotX": -7.902145E-06,
-        "rotY": 0.16027315,
-        "rotZ": 4.95809254E-05,
+        "rotX": -7.648404E-06,
+        "rotY": 0.16027534,
+        "rotZ": 4.16341281E-05,
         "scaleX": 0.875,
         "scaleY": 0.875,
         "scaleZ": 0.875
@@ -10071,9 +10071,9 @@
       "Nickname": "Action Cards",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.6865069,
+        "r": 0.6867103,
         "g": 0.99999994,
-        "b": 0.655152
+        "b": 0.6553708
       },
       "Locked": true,
       "Grid": true,
@@ -10089,12 +10089,12 @@
     {
       "Name": "DeckCustom",
       "Transform": {
-        "posX": -23.5437756,
-        "posY": 1.162038,
-        "posZ": 1.45463681,
-        "rotX": 1.76086155E-06,
-        "rotY": 179.823273,
-        "rotZ": -1.662259E-05,
+        "posX": -23.5438614,
+        "posY": 1.16203809,
+        "posZ": 1.45461345,
+        "rotX": 7.0461183E-06,
+        "rotY": 179.8248,
+        "rotZ": -2.13561525E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -10102,9 +10102,9 @@
       "Nickname": "Minor Improvements K-Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.71336,
-        "g": 0.71336,
-        "b": 0.71336
+        "r": 0.713551044,
+        "g": 0.713551044,
+        "b": 0.713551044
       },
       "Locked": false,
       "Grid": true,
@@ -11509,10 +11509,10 @@
       "Transform": {
         "posX": -16.8539085,
         "posY": 1.05810463,
-        "posZ": 1.42916238,
-        "rotX": 1.23831148E-06,
-        "rotY": 180.001373,
-        "rotZ": 1.67617509E-06,
+        "posZ": 1.42915285,
+        "rotX": 2.18473986E-07,
+        "rotY": 180.0027,
+        "rotZ": 1.795257E-07,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -11520,9 +11520,9 @@
       "Nickname": "Occupations K-Deck (1+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133678,
-        "g": 0.7133678,
-        "b": 0.7133678
+        "r": 0.713558853,
+        "g": 0.713558853,
+        "b": 0.713558853
       },
       "Locked": false,
       "Grid": true,
@@ -12159,10 +12159,10 @@
       "Transform": {
         "posX": -18.9893551,
         "posY": 1.01912975,
-        "posZ": 1.46221638,
-        "rotX": 6.95484061E-07,
-        "rotY": 179.998489,
-        "rotZ": -2.48034962E-06,
+        "posZ": 1.462261,
+        "rotX": 6.720112E-07,
+        "rotY": 179.996124,
+        "rotZ": -1.83005113E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -12170,9 +12170,9 @@
       "Nickname": "Occupations K-Deck (3+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133678,
-        "g": 0.7133678,
-        "b": 0.7133678
+        "r": 0.713558853,
+        "g": 0.713558853,
+        "b": 0.713558853
       },
       "Locked": false,
       "Grid": true,
@@ -12519,12 +12519,12 @@
     {
       "Name": "Deck",
       "Transform": {
-        "posX": -21.2271729,
+        "posX": -21.22708,
         "posY": 1.05810463,
-        "posZ": 1.44900358,
-        "rotX": -5.125087E-07,
+        "posZ": 1.44901884,
+        "rotX": -1.18230264E-06,
         "rotY": 180.001434,
-        "rotZ": 9.908536E-06,
+        "rotZ": 8.896932E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -12532,9 +12532,9 @@
       "Nickname": "Occupations K-Deck (4+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133678,
-        "g": 0.7133678,
-        "b": 0.7133678
+        "r": 0.713558853,
+        "g": 0.713558853,
+        "b": 0.713558853
       },
       "Locked": false,
       "Grid": true,
@@ -13169,12 +13169,12 @@
     {
       "Name": "DeckCustom",
       "Transform": {
-        "posX": -23.5316658,
+        "posX": -23.5315723,
         "posY": 1.20534348,
         "posZ": -1.83026,
-        "rotX": -5.92357E-06,
-        "rotY": 180.004013,
-        "rotZ": 2.74974263E-05,
+        "rotX": 2.05596461E-06,
+        "rotY": 180.006073,
+        "rotZ": 2.884482E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -13182,9 +13182,9 @@
       "Nickname": "Minor Improvements E-Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.71336,
-        "g": 0.71336,
-        "b": 0.71336
+        "r": 0.713551044,
+        "g": 0.713551044,
+        "b": 0.713551044
       },
       "Locked": false,
       "Grid": true,
@@ -14907,12 +14907,12 @@
     {
       "Name": "Deck",
       "Transform": {
-        "posX": -16.8234119,
+        "posX": -16.8235054,
         "posY": 1.09707963,
-        "posZ": -1.92094266,
-        "rotX": 1.287492E-06,
-        "rotY": 180.001312,
-        "rotZ": -5.83619E-06,
+        "posZ": -1.92095554,
+        "rotX": 7.033517E-07,
+        "rotY": 180.003387,
+        "rotZ": -6.63563151E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -14920,9 +14920,9 @@
       "Nickname": "Occupations E-Deck (1+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133678,
-        "g": 0.7133678,
-        "b": 0.7133678
+        "r": 0.713558853,
+        "g": 0.713558853,
+        "b": 0.713558853
       },
       "Locked": false,
       "Grid": true,
@@ -15845,12 +15845,12 @@
     {
       "Name": "Deck",
       "Transform": {
-        "posX": -19.0336361,
-        "posY": 1.06676579,
-        "posZ": -1.867548,
-        "rotX": 2.1568062E-06,
-        "rotY": 179.999191,
-        "rotZ": -1.5102004E-05,
+        "posX": -19.0336285,
+        "posY": 1.06676567,
+        "posZ": -1.86748588,
+        "rotX": -1.44728767E-06,
+        "rotY": 179.99733,
+        "rotZ": 1.00187081E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -15858,9 +15858,9 @@
       "Nickname": "Occupations E-Deck (3+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133678,
-        "g": 0.7133678,
-        "b": 0.7133678
+        "r": 0.713558853,
+        "g": 0.713558853,
+        "b": 0.713558853
       },
       "Locked": false,
       "Grid": true,
@@ -16559,12 +16559,12 @@
     {
       "Name": "DeckCustom",
       "Transform": {
-        "posX": -21.2265167,
+        "posX": -21.2264233,
         "posY": 1.07975733,
-        "posZ": -1.8094939,
-        "rotX": -1.72172531E-06,
-        "rotY": 179.998978,
-        "rotZ": 1.06307007E-05,
+        "posZ": -1.80945885,
+        "rotX": -1.53381006E-06,
+        "rotY": 179.997711,
+        "rotZ": 1.09460016E-05,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -16572,9 +16572,9 @@
       "Nickname": "Occupations E-Deck (4+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.71336,
-        "g": 0.71336,
-        "b": 0.71336
+        "r": 0.713551044,
+        "g": 0.713551044,
+        "b": 0.713551044
       },
       "Locked": false,
       "Grid": true,
@@ -17378,10 +17378,10 @@
       "Transform": {
         "posX": -23.5424881,
         "posY": 1.162038,
-        "posZ": -5.288189,
-        "rotX": 6.29984334E-06,
-        "rotY": 180.002319,
-        "rotZ": 9.002103E-06,
+        "posZ": -5.288234,
+        "rotX": -7.640055E-07,
+        "rotY": 180.00563,
+        "rotZ": 9.751592E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -17389,9 +17389,9 @@
       "Nickname": "Minor Improvements I-Deck",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.71336,
-        "g": 0.71336,
-        "b": 0.71336
+        "r": 0.713551044,
+        "g": 0.713551044,
+        "b": 0.713551044
       },
       "Locked": false,
       "Grid": true,
@@ -18795,11 +18795,11 @@
       "Name": "Deck",
       "Transform": {
         "posX": -16.7600632,
-        "posY": 1.05810452,
-        "posZ": -5.30087,
-        "rotX": -3.43199559E-07,
+        "posY": 1.05810463,
+        "posZ": -5.300868,
+        "rotX": -4.666577E-07,
         "rotY": 179.999481,
-        "rotZ": 4.74864055E-06,
+        "rotZ": 5.061921E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -18807,9 +18807,9 @@
       "Nickname": "Occupations I-Deck (1+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.713363945,
-        "g": 0.713363945,
-        "b": 0.713363945
+        "r": 0.713555,
+        "g": 0.713555,
+        "b": 0.713555
       },
       "Locked": false,
       "Grid": true,
@@ -19447,9 +19447,9 @@
         "posX": -18.9881668,
         "posY": 1.01912975,
         "posZ": -5.28346825,
-        "rotX": -2.56690864E-08,
+        "rotX": 7.365825E-08,
         "rotY": 180.000183,
-        "rotZ": -1.04937847E-07,
+        "rotZ": -1.2224811E-07,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -19457,9 +19457,9 @@
       "Nickname": "Occupations I-Deck (3+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.713363945,
-        "g": 0.713363945,
-        "b": 0.713363945
+        "r": 0.713555,
+        "g": 0.713555,
+        "b": 0.713555
       },
       "Locked": false,
       "Grid": true,
@@ -19809,9 +19809,9 @@
         "posX": -21.2976952,
         "posY": 1.05810463,
         "posZ": -5.29444361,
-        "rotX": 4.43839454E-08,
-        "rotY": 180.000519,
-        "rotZ": -3.44699E-08,
+        "rotX": 4.38380034E-08,
+        "rotY": 180.000778,
+        "rotZ": 9.3058695E-08,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -19819,9 +19819,9 @@
       "Nickname": "Occupations I-Deck (4+)",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.713363945,
-        "g": 0.713363945,
-        "b": 0.713363945
+        "r": 0.713555,
+        "g": 0.713555,
+        "b": 0.713555
       },
       "Locked": false,
       "Grid": true,
@@ -20478,7 +20478,7 @@
       "Snap": true,
       "Autoraise": true,
       "Sticky": true,
-      "LuaScript": "",
+      "LuaScript": " function dealOccupations(object)\r\n    print(\"Shuffling occupations from deck \" .. object.getName() .. \" GUID \" .. object.getGUID())\r\n    \r\n    object.shuffle()\r\n\r\n    print(\"Dealing 7 occupations to each player\")\r\n    object.dealToAll(7)\r\nend\r\n\r\n\r\nfunction onObjectEnterScriptingZone(zone, object)\r\n    if (zone.getGUID() ~= self.getGUID()) then\r\n        return\r\n    end\r\n    \r\n    if (object.name == \"Deck\" or object.name == \"DeckCustom\") then\r\n        dealOccupations(object)\r\n    end\r\nend\r\n",
       "GUID": "d46db2"
     },
     {
@@ -20506,7 +20506,7 @@
       "Snap": true,
       "Autoraise": true,
       "Sticky": true,
-      "LuaScript": "",
+      "LuaScript": " function dealMinorImprovements(object)\r\n    print(\"Shuffling minor improvements from deck \" .. object.getName() .. \" GUID \" .. object.getGUID())\r\n    \r\n    object.shuffle()\r\n\r\n    print(\"Dealing 7 minor improvements to each player\")\r\n    object.dealToAll(7)\r\nend\r\n\r\n\r\n--[[ Even hooks ]]\r\n\r\nfunction onObjectEnterScriptingZone(zone, object)\r\n    if (zone.getGUID() ~= self.getGUID()) then\r\n        return\r\n    end\r\n    \r\n    if (object.name == \"Deck\" or object.name == \"DeckCustom\") then\r\n        dealMinorImprovements(object)\r\n    end\r\nend\r\n",
       "GUID": "286fa6"
     },
     {
@@ -20514,9 +20514,9 @@
       "Transform": {
         "posX": -26.00048,
         "posY": 0.9782737,
-        "posZ": 4.17220068,
-        "rotX": -4.36287655E-06,
-        "rotY": 179.981079,
+        "posZ": 4.17218876,
+        "rotX": -2.02689148E-06,
+        "rotY": 179.982758,
         "rotZ": 180.0,
         "scaleX": 0.5,
         "scaleY": 0.5,
@@ -20525,7 +20525,7 @@
       "Nickname": "5 Players Token",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.5786388,
+        "r": 0.5791441,
         "g": 0.99999994,
         "b": 0.997976959
       },
@@ -20552,9 +20552,9 @@
       "Transform": {
         "posX": -27.3086948,
         "posY": 0.9782737,
-        "posZ": 4.19544554,
-        "rotX": -8.8545147E-07,
-        "rotY": 179.99234,
+        "posZ": 4.195399,
+        "rotX": -2.31039462E-06,
+        "rotY": 179.9906,
         "rotZ": 180.000015,
         "scaleX": 0.5,
         "scaleY": 0.5,
@@ -20563,9 +20563,9 @@
       "Nickname": "4 Players Token",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.4708157,
+        "r": 0.471387446,
         "g": 0.99999994,
-        "b": 0.588507652
+        "b": 0.5890047
       },
       "Locked": false,
       "Grid": true,
@@ -20589,10 +20589,10 @@
       "Name": "Custom_Model",
       "Transform": {
         "posX": -28.6088448,
-        "posY": 0.9782738,
-        "posZ": 4.197594,
-        "rotX": -2.00812974E-06,
-        "rotY": 179.9868,
+        "posY": 0.978273749,
+        "posZ": 4.197578,
+        "rotX": -4.21183358E-06,
+        "rotY": 179.9881,
         "rotZ": 180.0,
         "scaleX": 0.5,
         "scaleY": 0.5,
@@ -20601,9 +20601,9 @@
       "Nickname": "3 Players Token",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.603047967,
+        "r": 0.603534639,
         "g": 0.99999994,
-        "b": 0.345339328
+        "b": 0.345945448
       },
       "Locked": false,
       "Grid": true,
@@ -20628,9 +20628,9 @@
       "Transform": {
         "posX": -29.9273014,
         "posY": 0.978273749,
-        "posZ": 4.16962051,
-        "rotX": -3.32433183E-06,
-        "rotY": 179.986176,
+        "posZ": 4.169574,
+        "rotX": -3.48855451E-06,
+        "rotY": 179.985931,
         "rotZ": 180.000015,
         "scaleX": 0.5,
         "scaleY": 0.5,
@@ -20639,9 +20639,9 @@
       "Nickname": "2 Players Token",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.9760471,
+        "r": 0.976084054,
         "g": 0.99999994,
-        "b": 0.345339328
+        "b": 0.345945448
       },
       "Locked": false,
       "Grid": true,
@@ -20666,9 +20666,9 @@
       "Transform": {
         "posX": -31.2056637,
         "posY": 0.978273749,
-        "posZ": 4.15214,
-        "rotX": -5.043378E-06,
-        "rotY": 179.979416,
+        "posZ": 4.152128,
+        "rotX": -5.00767146E-06,
+        "rotY": 179.984528,
         "rotZ": 180.0,
         "scaleX": 0.5,
         "scaleY": 0.5,
@@ -20678,8 +20678,8 @@
       "Description": "",
       "ColorDiffuse": {
         "r": 0.99999994,
-        "g": 0.7019308,
-        "b": 0.50218153
+        "g": 0.702324867,
+        "b": 0.502736151
       },
       "Locked": false,
       "Grid": true,
@@ -20732,10 +20732,10 @@
       "Transform": {
         "posX": -18.98252,
         "posY": 1.02957428,
-        "posZ": -9.154734,
-        "rotX": -1.1799865E-06,
-        "rotY": 180.002472,
-        "rotZ": -6.60467038E-07,
+        "posZ": -9.154655,
+        "rotX": 3.846099E-06,
+        "rotY": 180.005249,
+        "rotZ": 2.10903249E-06,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -20743,9 +20743,9 @@
       "Nickname": "Action cards for 4 player game",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133795,
-        "g": 0.7133795,
-        "b": 0.7133795
+        "r": 0.713570535,
+        "g": 0.713570535,
+        "b": 0.713570535
       },
       "Locked": false,
       "Grid": true,
@@ -20785,7 +20785,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]Traveling Players[/b] 1 food / round",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -20799,7 +20799,7 @@
           "Sticky": true,
           "CardID": 1815,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = { Food = 1 }",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -20816,7 +20816,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]2 Wood[/b] / round",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -20830,7 +20830,7 @@
           "Sticky": true,
           "CardID": 1811,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = { Wood = 2 }",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -20847,7 +20847,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]2 Clay[/b] / round",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -20861,7 +20861,7 @@
           "Sticky": true,
           "CardID": 1809,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = { Clay = 2 }",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -20878,7 +20878,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]1 Occupation[/b] (1st / 2nd = 1 food, each additional 2 food)",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -20892,7 +20892,7 @@
           "Sticky": true,
           "CardID": 1807,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = {}",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -20909,7 +20909,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]1 Wood[/b] / round",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -20923,7 +20923,7 @@
           "Sticky": true,
           "CardID": 1805,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = { Wood = 1 }",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -20940,7 +20940,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]Take 1 Reed, 1 Stone and 1 Food[/b] and place them in your personal supply",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -20954,7 +20954,7 @@
           "Sticky": true,
           "CardID": 1803,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = {}",
           "ContainedObjects": [],
           "GUID": ""
         }
@@ -20964,12 +20964,12 @@
     {
       "Name": "Deck",
       "Transform": {
-        "posX": -21.18991,
+        "posX": -21.189724,
         "posY": 1.02674639,
-        "posZ": -9.113769,
-        "rotX": -4.622792E-08,
-        "rotY": 179.997177,
-        "rotZ": 1.05135236E-07,
+        "posZ": -9.113716,
+        "rotX": 8.54451159E-08,
+        "rotY": 179.9985,
+        "rotZ": 1.731142E-08,
         "scaleX": 1.0,
         "scaleY": 1.0,
         "scaleZ": 1.0
@@ -20977,9 +20977,9 @@
       "Nickname": "Action cards for 3 player game",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.7133795,
-        "g": 0.7133795,
-        "b": 0.7133795
+        "r": 0.713570535,
+        "g": 0.713570535,
+        "b": 0.713570535
       },
       "Locked": false,
       "Grid": true,
@@ -21017,7 +21017,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]2 Wood[/b] / round",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -21031,7 +21031,7 @@
           "Sticky": true,
           "CardID": 1710,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = { Wood = 2 }",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -21048,7 +21048,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]1 Occupation[/b] (costs 2 food)",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -21062,7 +21062,7 @@
           "Sticky": true,
           "CardID": 1706,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = {}",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -21079,7 +21079,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "[b]1 Clay[/b] / round",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -21093,7 +21093,7 @@
           "Sticky": true,
           "CardID": 1701,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = { Clay = 1 }",
           "ContainedObjects": [],
           "GUID": ""
         },
@@ -21110,7 +21110,7 @@
             "scaleY": 1.0,
             "scaleZ": 1.0
           },
-          "Nickname": "",
+          "Nickname": "Take 1 [b]Building Resource[/b] of your choice and place it in your personal supply",
           "Description": "",
           "ColorDiffuse": {
             "r": 0.713239133,
@@ -21124,7 +21124,7 @@
           "Sticky": true,
           "CardID": 1700,
           "SidewaysCard": false,
-          "LuaScript": "",
+          "LuaScript": "resources = {}",
           "ContainedObjects": [],
           "GUID": ""
         }
@@ -21137,17 +21137,17 @@
         "posX": -33.86362,
         "posY": 0.978273749,
         "posZ": 11.01834,
-        "rotX": -3.04343772E-09,
+        "rotX": -3.87579533E-08,
         "rotY": 179.985138,
         "rotZ": 180.0,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "Start Game",
+      "Nickname": "Start Game Token",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.9972557,
+        "r": 0.9972618,
         "g": 0.99999994,
         "b": 0.9974807
       },
@@ -21172,21 +21172,21 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -25.9572582,
+        "posX": -25.9572086,
         "posY": 0.978273749,
         "posZ": 2.57538366,
-        "rotX": -2.55959685E-06,
-        "rotY": 179.9816,
-        "rotZ": 180.000015,
+        "rotX": -1.18352909E-06,
+        "rotY": 179.982208,
+        "rotZ": 180.0,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "K-Deck",
+      "Nickname": "K-Deck Token",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.496005654,
-        "g": 0.186258,
+        "r": 0.496566445,
+        "g": 0.186814174,
         "b": 0.0
       },
       "Locked": false,
@@ -21212,19 +21212,19 @@
       "Transform": {
         "posX": -27.2750359,
         "posY": 0.9782737,
-        "posZ": 2.59121871,
-        "rotX": 3.81938344E-06,
-        "rotY": 180.00116,
+        "posZ": 2.591207,
+        "rotX": 4.23395841E-06,
+        "rotY": 180.000671,
         "rotZ": 180.0,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "E-Deck",
+      "Nickname": "E-Deck Token",
       "Description": "",
       "ColorDiffuse": {
         "r": 0.0,
-        "g": 0.262848258,
+        "g": 0.263442963,
         "b": 0.0
       },
       "Locked": false,
@@ -21248,21 +21248,21 @@
     {
       "Name": "Custom_Model",
       "Transform": {
-        "posX": -28.6211472,
-        "posY": 0.9782737,
-        "posZ": 2.62560916,
-        "rotX": -8.957813E-07,
-        "rotY": 179.98587,
+        "posX": -28.6210632,
+        "posY": 0.97827363,
+        "posZ": 2.62559915,
+        "rotX": -2.947318E-06,
+        "rotY": 179.986481,
         "rotZ": 180.000015,
         "scaleX": 0.5,
         "scaleY": 0.5,
         "scaleZ": 0.5
       },
-      "Nickname": "I-Deck",
+      "Nickname": "I-Deck Token",
       "Description": "",
       "ColorDiffuse": {
-        "r": 0.4495803,
-        "g": 0.62753123,
+        "r": 0.450161457,
+        "g": 0.6279934,
         "b": 0.0
       },
       "Locked": false,
@@ -21282,6 +21282,1126 @@
       },
       "LuaScript": "",
       "GUID": "ae31c5"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -2.82197523,
+        "posY": 2.98878837,
+        "posZ": 0.379104137,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.79837155,
+        "scaleY": 3.5,
+        "scaleZ": 3.9319
+      },
+      "Nickname": "Round 1 Scripting Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "8658b7"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 0.356808,
+        "posY": 2.95324159,
+        "posZ": 0.2823434,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.63239956,
+        "scaleY": 3.5,
+        "scaleZ": 3.66741347
+      },
+      "Nickname": "Round 2 Scripting Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "fe050d"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 0.2556144,
+        "posY": 2.96170759,
+        "posZ": -3.92049122,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.5957365,
+        "scaleY": 3.5,
+        "scaleZ": 3.72414112
+      },
+      "Nickname": "Round 3 Scripting Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "ce9a11"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 0.27240473,
+        "posY": 2.96885252,
+        "posZ": -8.104282,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.52206349,
+        "scaleY": 3.5,
+        "scaleZ": 3.53890777
+      },
+      "Nickname": "Round 4 Scripting Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "2cd64d"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 3.25837564,
+        "posY": 2.92013741,
+        "posZ": 0.2980045,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.45645261,
+        "scaleY": 3.5,
+        "scaleZ": 3.79701281
+      },
+      "Nickname": "Round 5 Scripting Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "833759"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 3.20258141,
+        "posY": 2.92797565,
+        "posZ": -3.93023133,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.37326336,
+        "scaleY": 3.5,
+        "scaleZ": 3.76158619
+      },
+      "Nickname": "Round 6 Scripting Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "ba2965"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 3.21500564,
+        "posY": 2.93601251,
+        "posZ": -8.021468,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.440028,
+        "scaleY": 3.5,
+        "scaleZ": 3.313257
+      },
+      "Nickname": "Round 7 Scripting Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "5b711c"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 7.597096,
+        "posY": 2.88378453,
+        "posZ": -3.421376,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.47480845,
+        "scaleY": 3.5,
+        "scaleZ": 4.12943649
+      },
+      "Nickname": "Round 8 Scripting Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "b4381a"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 7.54206276,
+        "posY": 2.88378525,
+        "posZ": -7.933919,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.54856777,
+        "scaleY": 3.5,
+        "scaleZ": 3.97078633
+      },
+      "Nickname": "Round 9 Scripting Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "5b99b7"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 10.6074877,
+        "posY": 2.88378453,
+        "posZ": -3.455803,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.38989854,
+        "scaleY": 3.5,
+        "scaleZ": 3.90061975
+      },
+      "Nickname": "Round 10 Scripting Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "a2c5f0"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 10.577527,
+        "posY": 2.88378525,
+        "posZ": -7.866047,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.45270371,
+        "scaleY": 3.5,
+        "scaleZ": 3.86334276
+      },
+      "Nickname": "Round 11 Scripting Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "dce35e"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 13.6743364,
+        "posY": 2.88378453,
+        "posZ": -3.40087342,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.65859032,
+        "scaleY": 3.5,
+        "scaleZ": 4.007319
+      },
+      "Nickname": "Round 12 Scripting Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "f62afb"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 13.60383,
+        "posY": 2.88378525,
+        "posZ": -7.80311871,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.4527247,
+        "scaleY": 3.5,
+        "scaleZ": 3.92417622
+      },
+      "Nickname": "Round 13 Scripting Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "ccfdc4"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 16.7613125,
+        "posY": 2.88378453,
+        "posZ": -3.36586618,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.496653,
+        "scaleY": 3.5,
+        "scaleZ": 4.01118326
+      },
+      "Nickname": "Round 14 Scripting Zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "934f90"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -13.2478619,
+        "posY": 3.0397954,
+        "posZ": 0.278365731,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.27328587,
+        "scaleY": 3.5,
+        "scaleZ": 3.62275624
+      },
+      "Nickname": "Top left action card scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "26d1fc"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -10.3079948,
+        "posY": 3.0397954,
+        "posZ": 0.319532037,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.42035437,
+        "scaleY": 3.5,
+        "scaleZ": 3.512956
+      },
+      "Nickname": "Top right action card scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "2a6c15"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -13.2498684,
+        "posY": 3.03979588,
+        "posZ": -4.036151,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.32236385,
+        "scaleY": 3.5,
+        "scaleZ": 3.88861275
+      },
+      "Nickname": "Middle left action card scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "0e1397"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -10.3039513,
+        "posY": 3.03979588,
+        "posZ": -4.03750849,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.4885776,
+        "scaleY": 3.5,
+        "scaleZ": 3.88133454
+      },
+      "Nickname": "Middle right action card scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "0af55c"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -13.23999,
+        "posY": 3.03979635,
+        "posZ": -8.36749649,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.41506624,
+        "scaleY": 3.5,
+        "scaleZ": 3.5894978
+      },
+      "Nickname": "Bottom left action card scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "c6e3f3"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -10.2687521,
+        "posY": 3.03979635,
+        "posZ": -8.341938,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.34240746,
+        "scaleY": 3.5,
+        "scaleZ": 3.76940513
+      },
+      "Nickname": "Bottom right action card scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "8fdd38"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -7.30904627,
+        "posY": 3.0397954,
+        "posZ": 1.4454782,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.95009661,
+        "scaleY": 3.5,
+        "scaleZ": 1.85507846
+      },
+      "Nickname": "Build rooms scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "a08297"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -7.322534,
+        "posY": 3.03979564,
+        "posZ": -0.757551551,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 3.04494882,
+        "scaleY": 3.5,
+        "scaleZ": 1.79896426
+      },
+      "Nickname": "Starting player scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "e9469a"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -7.31744337,
+        "posY": 3.03979588,
+        "posZ": -2.95371246,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 2.97085953,
+        "scaleY": 3.5,
+        "scaleZ": 1.74323273
+      },
+      "Nickname": "Take grain scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "3a7f4d"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -7.310496,
+        "posY": 3.039796,
+        "posZ": -5.16764736,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 3.00780845,
+        "scaleY": 3.5,
+        "scaleZ": 1.76870418
+      },
+      "Nickname": "Plow field scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "aa671d"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -7.284664,
+        "posY": 3.03979635,
+        "posZ": -7.292195,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 3.034381,
+        "scaleY": 3.5,
+        "scaleZ": 1.81580853
+      },
+      "Nickname": "Occupation scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "241264"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -7.34211445,
+        "posY": 3.03979659,
+        "posZ": -9.476608,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 3.07828259,
+        "scaleY": 3.5,
+        "scaleZ": 1.83966672
+      },
+      "Nickname": "Day laborer scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = {}",
+      "GUID": "292428"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -2.86085844,
+        "posY": 2.99819,
+        "posZ": -2.81686664,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 3.032877,
+        "scaleY": 3.5,
+        "scaleZ": 1.82584834
+      },
+      "Nickname": "Wood scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = { Wood = 3 }",
+      "GUID": "ac920e"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -2.87572217,
+        "posY": 3.00261712,
+        "posZ": -4.98404026,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 3.10196257,
+        "scaleY": 3.5,
+        "scaleZ": 1.86838436
+      },
+      "Nickname": "Clay scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = { Clay = 1 }",
+      "GUID": "6e8819"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -2.845662,
+        "posY": 3.00645733,
+        "posZ": -7.15953732,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 3.16134238,
+        "scaleY": 3.5,
+        "scaleZ": 1.9701457
+      },
+      "Nickname": "Reed scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = { Reed = 1 }",
+      "GUID": "04f5b0"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -2.89165258,
+        "posY": 3.01064968,
+        "posZ": -9.34765148,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 3.10406375,
+        "scaleY": 3.5,
+        "scaleZ": 1.92305458
+      },
+      "Nickname": "Fishing scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "resources = { Food = 1 }",
+      "GUID": "e01044"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 24.4677849,
+        "posY": 3.07565451,
+        "posZ": -21.4129715,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 12.0833626,
+        "scaleY": 3.5,
+        "scaleZ": 7.36090851
+      },
+      "Nickname": "White player farm scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "",
+      "GUID": "5f165b"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -22.1378288,
+        "posY": 2.733192,
+        "posZ": -21.4146671,
+        "rotX": 0.0,
+        "rotY": 359.965057,
+        "rotZ": 0.0,
+        "scaleX": 12.1991472,
+        "scaleY": 3.5,
+        "scaleZ": 7.399632
+      },
+      "Nickname": "Red player farm scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "",
+      "GUID": "f1ea9d"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -23.9515171,
+        "posY": 3.07565022,
+        "posZ": 21.4856586,
+        "rotX": 0.0,
+        "rotY": 179.419128,
+        "rotZ": 0.0,
+        "scaleX": 12.1050854,
+        "scaleY": 3.5,
+        "scaleZ": 7.431384
+      },
+      "Nickname": "Green player farm scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "",
+      "GUID": "baae38"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 23.5117645,
+        "posY": 3.07565737,
+        "posZ": 21.4335041,
+        "rotX": 0.0,
+        "rotY": 178.578857,
+        "rotZ": 0.0,
+        "scaleX": 12.2533588,
+        "scaleY": 3.5,
+        "scaleZ": 7.718676
+      },
+      "Nickname": "Blue player farm scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "",
+      "GUID": "f12186"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 39.4341965,
+        "posY": 3.109332,
+        "posZ": 11.4887791,
+        "rotX": 0.0,
+        "rotY": 271.4419,
+        "rotZ": 0.0,
+        "scaleX": 12.5124149,
+        "scaleY": 3.5,
+        "scaleZ": 7.32042027
+      },
+      "Nickname": "Purple player farm scripting zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "",
+      "GUID": "8e8f24"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 19.5746536,
+        "posY": 3.0756588,
+        "posZ": -23.0509949,
+        "rotX": 0.0,
+        "rotY": 0.0230149459,
+        "rotZ": 0.0,
+        "scaleX": 1.77779317,
+        "scaleY": 3.5,
+        "scaleZ": 4.731729
+      },
+      "Nickname": "White home zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "",
+      "GUID": "cddcd1"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -27.1193237,
+        "posY": 2.733196,
+        "posZ": -22.866909,
+        "rotX": 0.0,
+        "rotY": 359.916382,
+        "rotZ": 0.0,
+        "scaleX": 1.969662,
+        "scaleY": 3.5,
+        "scaleZ": 4.855875
+      },
+      "Nickname": "Red home zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "",
+      "GUID": "9d9005"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": -18.9639549,
+        "posY": 3.07564449,
+        "posZ": 23.085844,
+        "rotX": 0.0,
+        "rotY": 178.177277,
+        "rotZ": 0.0,
+        "scaleX": 1.62111819,
+        "scaleY": 3.5,
+        "scaleZ": 4.83591652
+      },
+      "Nickname": "Green home zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "",
+      "GUID": "0f79a9"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 28.4732246,
+        "posY": 3.07566524,
+        "posZ": 23.0149078,
+        "rotX": 0.0,
+        "rotY": 179.046509,
+        "rotZ": 0.0,
+        "scaleX": 1.85852575,
+        "scaleY": 3.5,
+        "scaleZ": 4.990847
+      },
+      "Nickname": "Blue home zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "",
+      "GUID": "b4d2b7"
+    },
+    {
+      "Name": "ScriptingTrigger",
+      "Transform": {
+        "posX": 40.81353,
+        "posY": 2.94842553,
+        "posZ": 6.583245,
+        "rotX": 0.0,
+        "rotY": 270.018524,
+        "rotZ": 0.0,
+        "scaleX": 1.70298409,
+        "scaleY": 3.5,
+        "scaleZ": 4.512302
+      },
+      "Nickname": "Purple home zone",
+      "Description": "",
+      "ColorDiffuse": {
+        "r": 0.99999994,
+        "g": 0.99999994,
+        "b": 0.99999994
+      },
+      "Locked": true,
+      "Grid": true,
+      "Snap": true,
+      "Autoraise": true,
+      "Sticky": true,
+      "LuaScript": "",
+      "GUID": "d9e998"
     },
     {
       "Name": "3DText",

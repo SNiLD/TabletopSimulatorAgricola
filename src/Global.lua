@@ -23,6 +23,19 @@ function table.toString(table, separator)
 end
 
 
+function table.isEmpty(table)
+    if (table == nil) then
+        return true
+    end
+    
+    if (next(table) == nil) then
+        return true
+    end
+    
+    return false
+end
+
+
 function dummy()
 end
 
@@ -46,6 +59,7 @@ workerGUIDs =
     Purple = { "317185", "1da0ea", "96be86", "8898f4", "c1abc2" }
 }
 homeZoneGUIDs = { White = "cddcd1", Red = "9d9005", Green = "0f79a9", Blue = "b4d2b7", Purple = "d9e998"  }
+resourceBagGUIDs = { Wood = "57458b", Clay = "8a147c", Stone = "c64ad7", Reed = "141313", Grain = "61fc77", Vegetable = "e7cb62", Food = "f249ab", Sheep = "f851b2", Boar = "e7b33c", Cattle = "f0c5e7" }
 actionCardScriptingZoneGUIDs = { "26d1fc", "2a6c15", "0e1397", "0af55c", "c6e3f3", "8fdd38" }
 actionBoardScriptingZoneGUIDs = { "a08297", "e9469a", "3a7f4d", "aa671d", "241264", "292428", "ac920e", "6e8819", "04f5b0", "e01044" }
 actionRoundScriptingZoneGUIDs = { "8658b7", "fe050d", "ce9a11", "2cd64d", "833759", "ba2965", "5b711c", "b4381a", "5b99b7", "a2c5f0", "dce35e", "f62afb", "ccfdc4", "934f90" }
@@ -86,6 +100,11 @@ function setDeckTypes(types)
     deckTypes = types
 end
 
+
+function lock(object, parameters)
+    object.lock()
+end
+
 --[[ Private functions ]]
 
 
@@ -99,6 +118,8 @@ function dealCards(deck, rotation, positions)
     for _, position in pairs(positions) do
         parameters.position = position
         card = deck.takeObject(parameters)
+        card.setPosition(position)
+        card.setRotation(rotation)
     end
 end
 
@@ -119,12 +140,12 @@ function initializeFamilyBoard()
     local parameters = {}
     parameters.position = getObjectPositionTable(mainBoard, nil)
     parameters.rotation = {0.0, 180.0, 0.0}
-    parameters.callback = ""
+    parameters.callback = "lock"
     parameters.params = {}
     mainBoard.unlock()
     mainBoard.setPositionSmooth(getObjectPositionTable(boardBag, {0.0, 1.5, 0.0}))
     familyBoard = boardBag.takeObject(parameters)
-    familyBoard.lock()
+    familyBoard.setPosition(parameters.position)
 end
 
 
@@ -351,11 +372,14 @@ function initializeBoard()
     initializeActionCards(playerCount, isFamilyGame)
     initializeOccupations(playerCount, deckTypes)
     initializeMinorImprovements(deckTypes)
-    startRound()
+    startLuaCoroutine(nil, 'initializeWorkPhase')
 end
 
 
 function initializeWorkPhase()
+    coroutine.yield(0)
+    startRound()
+    return 1
 end
 
 
@@ -419,9 +443,80 @@ function returnWorkers()
 end
 
 
+function flipNewRoundCard()
+    print("Flipping new round card")
+    zone = getObjectFromGUID(actionRoundScriptingZoneGUIDs[currentRoundNumber])
+    for _, object in pairs(zone.getObjects()) do
+        if (object.name == "Card") then
+            object.setRotation({0.0, 180.0, 0.0})
+        end
+    end
+end
+
+
+function fillResourceToZone(zone, resources)
+    zonePosition = getObjectPositionTable(zone, {0.0, 2.0, 0.0})
+    for resource, amount in pairs(resources) do
+        print("Adding " .. amount .. " " .. resource .. " to " .. zone.getName())
+        resourceBag = getObjectFromGUID(resourceBagGUIDs[resource])
+        print("Taking resources from " .. resourceBag.getName())
+        local parameters = {}
+        parameters.position = zonePosition
+        parameters.rotation = {0.0, 0.0, 0.0}
+        parameters.callback = ""
+        parameters.params = {}
+        for i = 1, amount, 1 do
+            object = resourceBag.takeObject(parameters)
+            object.setPosition(zonePosition)
+        end
+    end
+end
+
+
+function fillResourcesToZone(zoneGUID)
+    zone = getObjectFromGUID(zoneGUID)
+    print("Filling resources to zone " .. zone.getName())
+    zoneResources = zone.getTable("resources")
+    
+    if (not table.isEmpty(zoneResources)) then
+        fillResourceToZone(zone, zoneResources)
+        return
+    end
+    
+    for _, object in pairs(zone.getObjects()) do
+        if (object.name == "Card") then
+            print("Getting resources for card " .. object.getName())
+            objectResources = object.getTable("resources")
+            if (not table.isEmpty(objectResources)) then
+                fillResourceToZone(zone, objectResources)
+            end
+        end
+    end
+end
+
+
+function fillResources()
+    print("Filling resources")
+    
+    for _, guid in pairs(actionCardScriptingZoneGUIDs) do
+        fillResourcesToZone(guid)
+    end
+    for _, guid in pairs(actionBoardScriptingZoneGUIDs) do
+        fillResourcesToZone(guid)
+    end
+    for roundNumber, guid in pairs(actionRoundScriptingZoneGUIDs) do
+        if (roundNumber <= currentRoundNumber) then
+            fillResourcesToZone(guid)
+        end
+    end    
+end
+
+
 function startRound()
     currentRoundNumber = currentRoundNumber + 1
     print("Starting round " .. currentRoundNumber)
+    flipNewRoundCard()
+    fillResources()
 end
 
 
@@ -512,6 +607,9 @@ end
 function onPlayerTurnEnd(color)
     if (isEndOfRound()) then
         endRound()
+        if (currentRoundNumber < 14) then
+            startRound()
+        end
     end
 end
 
