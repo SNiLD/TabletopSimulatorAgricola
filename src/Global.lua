@@ -110,10 +110,7 @@ end
 
 function dealCards(deck, rotation, positions)
     local parameters = {}
-    parameters.position = {}
     parameters.rotation = rotation
-    parameters.callback = ""
-    parameters.params = {}
     
     for _, position in pairs(positions) do
         parameters.position = position
@@ -153,35 +150,35 @@ function initializeGameStageCards()
     initializeGameStage(
         stage1CardDeckGUID,
         {
-            {-2.63777614, 1.30030215, 0.194500551},
-            {0.397731841, 1.26712489, 0.03501895},
-            {0.316840023, 1.2755394, -4.122939},
-            {0.418771684, 1.28196931, -8.297897}
+            getObjectFromGUID(actionRoundScriptingZoneGUIDs[1]).getPosition(),
+            getObjectFromGUID(actionRoundScriptingZoneGUIDs[2]).getPosition(),
+            getObjectFromGUID(actionRoundScriptingZoneGUIDs[3]).getPosition(),
+            getObjectFromGUID(actionRoundScriptingZoneGUIDs[4]).getPosition()
         })
     initializeGameStage(
         stage2CardDeckGUID,
         {
-            {3.30984449, 1.231528, 0.00103998382},
-            {3.24591732, 1.23985708, -4.213084},
-            {3.4350183, 1.24877107, -8.049803}
+            getObjectFromGUID(actionRoundScriptingZoneGUIDs[5]).getPosition(),
+            getObjectFromGUID(actionRoundScriptingZoneGUIDs[6]).getPosition(),
+            getObjectFromGUID(actionRoundScriptingZoneGUIDs[7]).getPosition()
         })
     initializeGameStage(
         stage3CardDeckGUID,
         {
-            {7.650797, 1.205321, -3.60009027},
-            {7.55944, 1.2157166, -8.03801}
+            getObjectFromGUID(actionRoundScriptingZoneGUIDs[8]).getPosition(),
+            getObjectFromGUID(actionRoundScriptingZoneGUIDs[9]).getPosition()
         })
     initializeGameStage(
         stage4CardDeckGUID,
         {
-            {10.4956465, 1.205321, -3.554801},
-            {10.5654831, 1.2157166, -8.035828}
+            getObjectFromGUID(actionRoundScriptingZoneGUIDs[10]).getPosition(),
+            getObjectFromGUID(actionRoundScriptingZoneGUIDs[11]).getPosition()
         })
     initializeGameStage(
         stage5CardDeckGUID,
         {
-            {13.5662766, 1.20532107, -3.49873352},
-            {13.5698023, 1.21571648, -7.92842054}
+            getObjectFromGUID(actionRoundScriptingZoneGUIDs[12]).getPosition(),
+            getObjectFromGUID(actionRoundScriptingZoneGUIDs[13]).getPosition()
         })
 end
 
