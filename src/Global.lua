@@ -365,6 +365,14 @@ function initializeBoard()
         initializeFamilyBoard()
     end
     
+    if (playerCount == 1) then
+        -- In single player mode the 3-wood action space gets only 2 wood.
+        woodScriptingZone = getObjectFromGUID("ac920e")
+        zoneResources = woodScriptingZone.getTable("resources")
+        zoneResources["Wood"] = 2
+        woodScriptingZone.setTable("resources", zoneResources)
+    end
+    
     initializeGameStageCards()
     initializeActionCards(playerCount, isFamilyGame)
     initializeOccupations(playerCount, deckTypes)
